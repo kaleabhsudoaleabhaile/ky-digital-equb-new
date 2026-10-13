@@ -44,7 +44,7 @@ function renderMembers() {
         if (addCard) addCard.style.display = "none";
         if (adminSec) addCard.style.display = "none";
         if (loginSec) loginSec.style.display = "block";
-        if (drawBtn) drawBtn.style.display = "none"; // ከአድሚን ውጭ ፈጽሞ እንዳይሰራ ተደረገ
+        if (drawBtn) drawBtn.style.display = "none";
         if (waitingText) waitingText.style.display = "block";
     }
 
@@ -77,7 +77,7 @@ function renderMembers() {
 
 function drawEqub() {
     if (!isAdmin) {
-        alert("⚠️ ይህንን ተግባር ማከናወን የሚችለው አድሚን ብቻ ነው! እባክዎን መጀመሪያ በአድሚን ፓስወርድ ይግቡ።");
+        alert("⚠️ ይህንን ተግባር ማከናወን የሚችለው አድሚን ብቻ ነው!");
         return;
     }
 
@@ -85,10 +85,17 @@ function drawEqub() {
         alert("⚠️ ምንም የተመዘገበ አባል የለም!");
         return;
     }
+
+    // የሁሉም አባላት 5ቱ ቀናት ቲክ መደረጋቸውን ማረጋገጥ
+    const allDaysFilled = members.every(m => m.days && m.days.every(d => d === true));
+    if (!allDaysFilled) {
+        alert("⚠️ እጣ ማውጣት አይቻልም! ሁሉም አባላት 5ቱንም ቀናት (ቲክ) ሙሉ በሙሉ መሙላት አለባቸው።");
+        return;
+    }
     
     const eligible = members.filter(m => !m.won);
     if (eligible.length === 0) {
-        alert("⚠️ ለሁሉም አባላት ዕጣ ወጥቷል!");
+        alert("⚠️ ለሁሉም አባላት ዕጣ ወጥቷል! አዲስ ዙር ለመጀመር አባላቱን ማስተካከል ይቻላል።");
         return;
     }
 
@@ -112,14 +119,10 @@ function finalizeWinner(eligible) {
     const idx = members.findIndex(m => m.name === winner.name);
     if (idx !== -1) members[idx].won = true;
 
-    // 5ቱም ቀናት ሙሉ በሙሉ በሁሉም አባላት ተሞልተው ከሆነ (checked) ቲክዎቹን በራሱ ሪሴት (ባዶ) ማድረግ
-    const allDaysFilled = members.length > 0 && members.every(m => m.days && m.days.every(d => d === true));
-    if (allDaysFilled) {
-        members.forEach(m => {
-            m.days = [false, false, false, false, false];
-        });
-        alert("🔄 የ 5ቱ ቀናት እቁብ ተጠናቆ ቲክዎቹ በራሳቸው አዲስ ዙር እንዲጀምሩ ተደርገዋል!");
-    }
+    // እጣው ሲወጣ 5ቱ ቀናት ሙሉ በሙሉ ባዶ (Reset) እንዲሆኑ ማድረግ
+    members.forEach(m => {
+        m.days = [false, false, false, false, false];
+    });
 
     renderMembers();
     
@@ -144,7 +147,7 @@ function finalizeWinner(eligible) {
         shareBtn.style.display = "inline-block";
     }
     
-    alert(`🎉 አሸናፊ: ${winner.name} (ዕጣው በስኬት ወጥቷል! አሁን ከታች ያለውን የቴሌግራም ቁልፍ በመንካት ቻናሉ ላይ ሼር ያድርጉት)`);
+    alert(`🎉 አሸናፊ: ${winner.name} (ዕጣው በስኬት ወጥቷል! አሁን ቲክዎቹ በራሳቸው ባዶ ተደርገዋል፤ የቴሌግራም ቁልፍን በመንካት ሼር ያድርጉ)`);
 }
 
 function toggleDay(mIdx, dIdx) {
