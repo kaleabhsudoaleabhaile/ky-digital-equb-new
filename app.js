@@ -3,12 +3,13 @@ const firebaseConfig = {
     databaseURL: "https://ky-digital-equb-default-rtdb.firebaseio.com/"
 };
 
-// Firebase ማስጀመር
+// Firebase ማጀመር
 if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 }
 const db = firebase.database();
 const membersRef = db.ref("ky_members_new");
+const spinRef = db.ref("ky_active_spin"); // 👈 የ Spin Real-time ሁኔታ ማስተካከያ
 
 let members = [];
 let isAdmin = localStorage.getItem("ky_is_admin_new") === "true";
@@ -20,12 +21,20 @@ membersRef.on("value", (snapshot) => {
     renderMembers();
 });
 
+// 👈 የ Real-time Spin ማዳመጫ (ሌላ ስልክ ላይ Spin ሲደረግ እዚህ ጋር ይመጣል)
+spinRef.on("value", (snapshot) => {
+    const spinData = snapshot.val();
+    if (spinData && spinData.spinning) {
+        runSpinAnimationLocally(spinData.winnerName);
+    }
+});
+
 function loginAdmin() {
-    const pass = prompt("የአድሚን ፓስወርድ ያስገቡ:");
+    const pass = prompt("የአስተዳዳሪ ፓስወርድ አስገባ:");
     if (pass === "182418") {
         isAdmin = true;
         localStorage.setItem("ky_is_admin_new", "true");
-        alert("✅ አድሚን ሆኖ ገብቷል!");
+        alert("✅ አስተዳዳሪ ሆኖ ገብቷል!");
         renderMembers();
     } else if (pass !== null) {
         alert("❌ ትክክል ያልሆነ ፓስወርድ!");
@@ -35,7 +44,7 @@ function loginAdmin() {
 function logoutAdmin() {
     isAdmin = false;
     localStorage.setItem("ky_is_admin_new", "false");
-    alert("🔒 ከአድሚን ወጥተዋል!");
+    alert("🔒 አስተዳዳሪ ወጥቷል!");
     renderMembers();
 }
 
@@ -43,10 +52,10 @@ function renderMembers() {
     const tbody = document.getElementById("membersList");
     if (!tbody) return;
     tbody.innerHTML = "";
-    
+
     const adminCols = document.querySelectorAll(".admin-col");
     adminCols.forEach(col => col.style.display = isAdmin ? "" : "none");
-    
+
     const addCard = document.getElementById("addMemberCard");
     const adminSec = document.getElementById("adminSection");
     const loginSec = document.getElementById("loginSection");
@@ -70,10 +79,10 @@ function renderMembers() {
     members.forEach((m, index) => {
         if (!m.days || m.days.length !== 5) m.days = [false, false, false, false, false];
         if (!m.gender) m.gender = "ወንድ";
-        
+
         const tr = document.createElement("tr");
         let disabledAttr = isAdmin ? "" : "disabled";
-        
+
         tr.innerHTML = `
             <td><strong>${m.name}</strong></td>
             <td>${m.gender}</td>
@@ -84,18 +93,18 @@ function renderMembers() {
             <td><input type="checkbox" class="custom-checkbox" ${m.days[3] ? 'checked' : ''} ${disabledAttr} onclick="toggleDay(${index}, 3)"></td>
             <td><input type="checkbox" class="custom-checkbox" ${m.days[4] ? 'checked' : ''} ${disabledAttr} onclick="toggleDay(${index}, 4)"></td>
             <td>${m.won ? '🏆 የወጣለት' : '-'}</td>
-            <td class="admin-col" style="${isAdmin ? '' : 'display:none;'}"><button class="btn btn-danger" onclick="deleteMember(${index})">አጥፋ</button></td>
+            <td class="admin-col" style="${isAdmin ? '' : 'display:none;'}"><button class="btn btn-danger" onclick="deleteMember(${index})">እጥፋ</button></td>
         `;
         tbody.appendChild(tr);
     });
-    
+
     const totalEl = document.getElementById("totalMembersCount");
     if (totalEl) totalEl.innerText = members.length;
 }
 
 function drawEqub() {
     if (!isAdmin) {
-        alert("⚠️ ይህንን ተግባር ማከናወን የሚችለው አድሚን ብቻ ነው!");
+        alert("⚠️ ይህንን ተግባር ማከናወን የሚችለው አስተዳዳሪ ብቻ ነው!");
         return;
     }
 
@@ -106,33 +115,61 @@ function drawEqub() {
 
     const allDaysFilled = members.every(m => m.days && m.days.every(d => d === true));
     if (!allDaysFilled) {
-        alert("⚠️ እጣ ማውጣት አይቻልም! ሁሉም አባላት 5ቱንም ቀናት (ቲክ) ሙሉ በሙሉ መሙላት አለባቸው።");
-        return;
-    }
-    
-    const eligible = members.filter(m => !m.won);
-    if (eligible.length === 0) {
-        alert("⚠️ ለሁሉም አባላት ዕጣ ወጥቷል! አዲስ ዙር ለመጀመር አባላቱን ማስተካከል ይቻላል።");
+        alert("⚠️ እጣ ማወጣት አይቻልም! ሁሉም አባላት 5ቱንም ቀናት (ክፍያ) ሙሉ በሙሉ መሞላት አለባቸው።");
         return;
     }
 
+    const eligible = members.filter(m => !m.won);
+    if (eligible.length === 0) {
+        alert("⚠️ ለሁሉም አባላት እጣ ወጥቷል! አዲስ ሀር ለማጀመር አባላትን ማስተካከል ይቻላል።");
+        return;
+    }
+
+    // አሸናፊውን እዚህ ጋር አስቀድመን እንመርጣለን
+    const winner = eligible[Math.floor(Math.random() * eligible.length)];
+
+    // 👈 የ Spin ሁኔታን ወደ Firebase እንልካለን (ይህም ሌሎቹ ስልኮች ላይ በ Real-time ያሳያል)
+    spinRef.set({
+        spinning: true,
+        winnerName: winner.name,
+        timestamp: Date.now()
+    });
+}
+
+// 👈 እዚህ ጋር አኒሜሽኑ ይሰራል (ለሁለቱም ስልኮች)
+function runSpinAnimationLocally(targetWinnerName) {
     const winnerDisplay = document.getElementById("winnerNameDisplay");
     let counter = 0;
+
     const spinInterval = setInterval(() => {
-        const randomMember = eligible[Math.floor(Math.random() * eligible.length)];
+        const randomMember = members[Math.floor(Math.random() * members.length)];
         if (winnerDisplay) {
-            winnerDisplay.innerText = "🎲 " + randomMember.name + " እየተሽከረከረ ነው...";
+            winnerDisplay.innerText = "🎲 " + randomMember.name + " እያሾለከለከ ነው...";
         }
         counter++;
+
         if (counter > 15) {
             clearInterval(spinInterval);
-            finalizeWinner(eligible);
+            
+            // አስተዳዳሪው ከሰራ ብቻ ውጤቱን ቋሚ (Finalize) ያደርገዋል
+            if (isAdmin) {
+                finalizeWinner(targetWinnerName);
+            } else {
+                showWinnerUI(targetWinnerName);
+            }
+
+            // 👈 አንዴ ከጨረሰ በኋላ የ Spin ሁኔታውን እናጠፋዋለን
+            setTimeout(() => {
+                if (isAdmin) spinRef.set({ spinning: false });
+            }, 1000);
         }
     }, 100);
 }
 
-function finalizeWinner(eligible) {
-    const winner = eligible[Math.floor(Math.random() * eligible.length)];
+function finalizeWinner(winnerName) {
+    const winner = members.find(m => m.name === winnerName);
+    if (!winner) return;
+
     const idx = members.findIndex(m => m.name === winner.name);
     if (idx !== -1) members[idx].won = true;
 
@@ -140,22 +177,27 @@ function finalizeWinner(eligible) {
         m.days = [false, false, false, false, false];
     });
 
-    // ዳታውን ወደ Firebase ማዘመን (በሁሉም ስልክ ላይ በራሱ እንዲቀየር)
     membersRef.set(members);
-    
-    const winnerDisplay = document.getElementById("winnerNameDisplay");
-    if (winnerDisplay) winnerDisplay.innerText = winner.name + " 🏆 (አሸናፊ!)";
+    showWinnerUI(winner.name);
+}
 
-    const genderText = winner.gender === 'ሴት' ? "የዚህ ዙር ዕጣ የወጣላት" : "የዚህ ዙር ዕጣ የወጣለት";
-    const congratsText = winner.gender === 'ሴት' ? "እንኳን ደስ አለሽ!" : "እንኳን ደስ አለህ!";
+function showWinnerUI(winnerName) {
+    const winner = members.find(m => m.name === winnerName) || { name: winnerName, gender: "ወንድ" };
+    const winnerDisplay = document.getElementById("winnerNameDisplay");
     
+    if (winnerDisplay) {
+        winnerDisplay.innerText = winner.name + " 🏆 (አሸናፊ!)";
+    }
+
+    const genderText = winner.gender === 'ሴት' ? "የዚህች ሀር ዕጣ የወጣችው" : "የዚህ ሀር ዕጣ የወጣው";
+    const congratsText = winner.gender === 'ሴት' ? "እንኳን ደስ አለሽ!" : "እንኳን ደስ አለህ!";
+
     const telegramMsg = `🎉 *K Y Digital Equb - Live Draw Result* 🎉\n\n` +
-                        `የዚህ ዙር ዕጣ አሸናፊ:\n` +
-                        `👤 ${genderText}: *${winner.name}*\n` +
-                        `💵 የዕቁብ ክፍያ መጠን: 50 ብር\n` +
-                        `🏆 አጠቃላይ ድምር: 25,000 ብር\n\n` +
-                        `💳 ለዕቁብ አባላት ብቻ የብድር አገልግሎት እናመቻቻለን::\n\n` +
-                        `${congratsText} 🎊 K Y Digital Equb`;
+        `🏆 ${genderText}: *${winner.name}*🏆\n\n` +
+        `💵 የቀቁብ ክፍያ መጠን: 50 ብር\n` +
+        `🏆 አጠቃላይ ድምር: 25,000 ብር\n` +
+        `💳 ለዕቁብ አባላት ብቻ የብድር አገልግሎት እንሰጣለን::\n\n` +
+        `🎉 ${congratsText}\n`;
 
     const shareBtn = document.getElementById("telegramShareBtn");
     if (shareBtn) {
@@ -163,16 +205,14 @@ function finalizeWinner(eligible) {
         shareBtn.href = telegramUrl;
         shareBtn.style.display = "inline-block";
     }
-    
-    alert(`🎉 አሸናፊ: ${winner.name} (ዕጣው በስኬት ወጥቷል! አሁን በሁሉም አባላት ስልክ ላይ በራሱ ሰርቷል)`);
+
+    alert(`🎉 አሸናፊ: ${winner.name} (ዕጣው በስኬት ወጥቷል! አሁን በሁሉም ስልኮች ላይ በሰላም ታይቷል)`);
 }
 
 function toggleDay(mIdx, dIdx) {
     if (!isAdmin) return;
     if (!members[mIdx].days) members[mIdx].days = [false, false, false, false, false];
     members[mIdx].days[dIdx] = !members[mIdx].days[dIdx];
-    
-    // ለውጡን ወዲያውኑ ወደ Firebase መላክ
     membersRef.set(members);
 }
 
@@ -191,15 +231,13 @@ function addMember() {
     if (!nameInput) return;
     const name = nameInput.value.trim();
     const gender = genderInput ? genderInput.value : "ወንድ";
-    
+
     if (!name) {
-        alert("እባክዎን ስም ያስገቡ!");
+        alert("እባክዎ ስም ያስገቡ!");
         return;
     }
-    
+
     members.push({ name, gender, days: [false, false, false, false, false], won: false });
     nameInput.value = "";
-    
-    // አዲሱን አባል ወደ Firebase መላክ
     membersRef.set(members);
 }
