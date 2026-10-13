@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="am">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K Y Digital Equb - Live</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🪙 K Y Digital Equb</h1>
+        
+        <!-- አድሚን መግቢያ እና መቆጣጠሪያ -->
+        <div id="adminSection" class="card" style="display: none;">
+            <h3>🔐 አድሚን ማስተካከያ</h3>
+            <button class="btn-danger" onclick="logoutAdmin()">አድሚን ውጣ (Logout)</button>
+        </div>
+        <div id="loginSection" class="card" style="text-align: right;">
+            <button class="btn-primary" style="width: auto; padding: 5px 15px;" onclick="loginAdmin()">የአድሚን መግቢያ</button>
+        </div>
+
+        <!-- አባል መመዝገቢያ (ለአድሚን ብቻ) -->
+        <div id="addMemberCard" class="card" style="display: none;">
+            <h3>👤 + አዲስ አባል መመዝገቢያ</h3>
+            <input type="text" id="memberNameInput" placeholder="የአባል ስም እና አባት ስም">
+            <select id="memberGenderInput">
+                <option value="ወንድ">ወንድ</option>
+                <option value="ሴት">ሴት</option>
+            </select>
+            <button class="btn-primary" onclick="addMember()">አባል አክል</button>
+        </div>
+
+        <!-- የዕጣ ማውጫ (Live Spin) ክፍል -->
+        <div class="card winner-card">
+            <h3>🏆 የቀጥታ (Live) ዕጣ ማውጣት</h3>
+            <div class="winner-display">
+                🎉 እንኳን ደስ አለዎት! የዛሬው አሸናፊ:- <br>
+                <span id="winnerNameDisplay">- 🏆</span>
+            </div>
+            <button id="drawBtn" class="btn-draw" style="display: none;" onclick="drawEqub()">🔀 ዕጣ አውጣ!</button>
+            <p id="waitingText" style="color: #38bdf8; font-size: 14px;">⏳ አድሚን እጣ እስኪያወጣ ይጠብቁ...</p>
+        </div>
+
+        <!-- የአባላት ዝርዝር እና ክፍያ ስንጠረዥ -->
+        <div class="card">
+            <h3>📋 የአባላት የ 5 ቀናት ክፍያ ስንጠረዥ</h3>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ስም</th>
+                            <th>ፆታ</th>
+                            <th>መጠን</th>
+                            <th>1</th>
+                            <th>2</th>
+                            <th>3</th>
+                            <th>4</th>
+                            <th>5</th>
+                            <th>ዕጣ</th>
+                            <th class="admin-col" style="display:none;">እርምጃ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="membersList">
+                        <!-- በጃቫስክሪፕት የሚሞላ -->
+                    </tbody>
+                </table>
+            </div>
+            <p>አጠቃላይ አባላት: <span id="totalMembersCount">0</span></p>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
