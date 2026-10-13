@@ -3,21 +3,18 @@ let isAdmin = localStorage.getItem("ky_is_admin_new") === "true";
 const BOT_TOKEN = "8993924043:AAHtYJM0TBJJm7wM1VAe4Yd0vNPj6pNtc0o";
 const CHANNEL_USERNAME = "@ky_digital_equb_channel";
 
-// ወደ ቴሌግራም ቻናል መልእክት መላኪያ
+// ወደ ቴሌግራም ቻናል መልእክት መላኪያ (Image/Iframe method ለ CORS ማለፊያ)
 function sendTelegramNotification(message) {
-    const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-    const data = {
-        chat_id: CHANNEL_USERNAME,
-        text: message,
-        parse_mode: "Markdown"
-    };
-
-    fetch(url, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data)
-    }).catch(err => console.log("Telegram error: ", err));
+    const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${encodeURIComponent(CHANNEL_USERNAME)}&text=${encodeURIComponent(message)}&parse_mode=Markdown`;
+    
+    // በ iframe አማካኝነት CORSን አልፎ መልእክቱን ወደ ቴሌግራም መላክ
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = url;
+    document.body.appendChild(iframe);
+    setTimeout(() => {
+        document.body.removeChild(iframe);
+    }, 3000);
 }
 
 function loginAdmin() {
@@ -102,14 +99,12 @@ function drawEqub() {
         return;
     }
     
-    // የትኛው ቀን ላይ እንዳለን ማወቅ (ለምሳሌ ቀን 1፣ ቀን 2... እስከ ቀን 5)
     let activeDayIndex = members[0].days.findIndex(day => day === false);
-    if (activeDayIndex === -1) activeDayIndex = 4; // 5ቱም ከተሞሉ የመጨረሻውን ቀን ይጠቀማል
+    if (activeDayIndex === -1) activeDayIndex = 4;
 
-    // ለወቅታዊው ቀን ሁሉም አባላት ቲክ መደረጋቸውን ማረጋገጥ
     const unpaid = members.filter(m => !m.days || m.days[activeDayIndex] !== true);
     if (unpaid.length > 0) {
-        alert(`⚠️ እጣ ማውጣት አይቻልም! ቀን ${activeDayIndex + 1} ላይ ያልከፈሉ/ቲክ ያልተደረጉ ${unpaid.length} አባላት አሉ። እጣ ለማውጣት ሁሉም አባላት ቲክ መደረግ አለባቸው!`);
+        alert(`⚠️ እጣ ማውጣት አይቻልም! ቀን ${activeDayIndex + 1} ላይ ያልከፈሉ/ቲክ ያልተደረጉ ${unpaid.length} አባላት አሉ።`);
         return;
     }
 
@@ -123,13 +118,11 @@ function drawEqub() {
     const idx = members.findIndex(m => m.name === winner.name);
     if (idx !== -1) members[idx].won = true;
 
-    // 🔴 አዲስ ህግ፡ 5ቱም ቀናት ቲክ ተደርገው ከነበረ ወይም 5ኛው ቀን እጣ ከወጣ በኋላ ሳጥኖቹ በራሳቸው ጊዜ ባዶ (Reset) እንዲሆኑ ማድረግ
     const allDaysFilled = members.every(m => m.days.every(d => d === true));
     if (allDaysFilled || activeDayIndex === 4) {
         members.forEach(m => {
             m.days = [false, false, false, false, false];
         });
-        alert("🔄 የ 5 ቀናት ዙር ስለተጠናቀቀ የሁሉም አባላት የቲክ ሳጥኖች ለቀጣዩ ዙር ባዶ ሆነዋል!");
     }
 
     renderMembers();
