@@ -1,5 +1,24 @@
-let members = JSON.parse(localStorage.getItem("ky_members_new")) || [];
+// Firebase Config (ለ K Y Digital Equb የተዘጋጀ)
+const firebaseConfig = {
+    databaseURL: "https://ky-digital-equb-default-rtdb.firebaseio.com/"
+};
+
+// Firebase ማስጀመር
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
+const db = firebase.database();
+const membersRef = db.ref("ky_members_new");
+
+let members = [];
 let isAdmin = localStorage.getItem("ky_is_admin_new") === "true";
+
+// ከ Firebase በ Real-time ዳታ መቀበል
+membersRef.on("value", (snapshot) => {
+    const data = snapshot.val();
+    members = data ? Object.values(data) : [];
+    renderMembers();
+});
 
 function loginAdmin() {
     const pass = prompt("የአድሚን ፓስወርድ ያስገቡ:");
@@ -42,7 +61,7 @@ function renderMembers() {
         if (waitingText) waitingText.style.display = "none";
     } else {
         if (addCard) addCard.style.display = "none";
-        if (adminSec) addCard.style.display = "none";
+        if (adminSec) adminSec.style.display = "none";
         if (loginSec) loginSec.style.display = "block";
         if (drawBtn) drawBtn.style.display = "none";
         if (waitingText) waitingText.style.display = "block";
@@ -72,7 +91,6 @@ function renderMembers() {
     
     const totalEl = document.getElementById("totalMembersCount");
     if (totalEl) totalEl.innerText = members.length;
-    localStorage.setItem("ky_members_new", JSON.stringify(members));
 }
 
 function drawEqub() {
@@ -86,7 +104,6 @@ function drawEqub() {
         return;
     }
 
-    // የሁሉም አባላት 5ቱ ቀናት ቲክ መደረጋቸውን ማረጋገጥ
     const allDaysFilled = members.every(m => m.days && m.days.every(d => d === true));
     if (!allDaysFilled) {
         alert("⚠️ እጣ ማውጣት አይቻልም! ሁሉም አባላት 5ቱንም ቀናት (ቲክ) ሙሉ በሙሉ መሙላት አለባቸው።");
@@ -119,12 +136,12 @@ function finalizeWinner(eligible) {
     const idx = members.findIndex(m => m.name === winner.name);
     if (idx !== -1) members[idx].won = true;
 
-    // እጣው ሲወጣ 5ቱ ቀናት ሙሉ በሙሉ ባዶ (Reset) እንዲሆኑ ማድረግ
     members.forEach(m => {
         m.days = [false, false, false, false, false];
     });
 
-    renderMembers();
+    // ዳታውን ወደ Firebase ማዘመን (በሁሉም ስልክ ላይ በራሱ እንዲቀየር)
+    membersRef.set(members);
     
     const winnerDisplay = document.getElementById("winnerNameDisplay");
     if (winnerDisplay) winnerDisplay.innerText = winner.name + " 🏆 (አሸናፊ!)";
@@ -147,21 +164,23 @@ function finalizeWinner(eligible) {
         shareBtn.style.display = "inline-block";
     }
     
-    alert(`🎉 አሸናፊ: ${winner.name} (ዕጣው በስኬት ወጥቷል! አሁን ቲክዎቹ በራሳቸው ባዶ ተደርገዋል፤ የቴሌግራም ቁልፍን በመንካት ሼር ያድርጉ)`);
+    alert(`🎉 አሸናፊ: ${winner.name} (ዕጣው በስኬት ወጥቷል! አሁን በሁሉም አባላት ስልክ ላይ በራሱ ሰርቷል)`);
 }
 
 function toggleDay(mIdx, dIdx) {
     if (!isAdmin) return;
     if (!members[mIdx].days) members[mIdx].days = [false, false, false, false, false];
     members[mIdx].days[dIdx] = !members[mIdx].days[dIdx];
-    renderMembers();
+    
+    // ለውጡን ወዲያውኑ ወደ Firebase መላክ
+    membersRef.set(members);
 }
 
 function deleteMember(idx) {
     if (!isAdmin) return;
     if (confirm("እርግጠኛ ነዎት ይህንን አባል ማጥፋት ይፈልጋሉ?")) {
         members.splice(idx, 1);
-        renderMembers();
+        membersRef.set(members);
     }
 }
 
@@ -180,13 +199,7 @@ function addMember() {
     
     members.push({ name, gender, days: [false, false, false, false, false], won: false });
     nameInput.value = "";
-    renderMembers();
+    
+    // አዲሱን አባል ወደ Firebase መላክ
+    membersRef.set(members);
 }
-
-document.addEventListener("DOMContentLoaded", () => {
-    renderMembers();
-    window.addEventListener("storage", () => {
-        members = JSON.parse(localStorage.getItem("ky_members_new")) || [];
-        renderMembers();
-    });
-});
