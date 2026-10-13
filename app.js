@@ -42,10 +42,10 @@ function renderMembers() {
         if (waitingText) waitingText.style.display = "none";
     } else {
         if (addCard) addCard.style.display = "none";
-        if (adminSec) adminSec.style.display = "none";
+        if (adminSec) addCard.style.display = "none";
         if (loginSec) loginSec.style.display = "block";
-        if (drawBtn) drawBtn.style.display = "block";
-        if (waitingText) waitingText.style.display = "none";
+        if (drawBtn) drawBtn.style.display = "none"; // ከአድሚን ውጭ ፈጽሞ እንዳይሰራ ተደረገ
+        if (waitingText) waitingText.style.display = "block";
     }
 
     members.forEach((m, index) => {
@@ -76,6 +76,11 @@ function renderMembers() {
 }
 
 function drawEqub() {
+    if (!isAdmin) {
+        alert("⚠️ ይህንን ተግባር ማከናወን የሚችለው አድሚን ብቻ ነው! እባክዎን መጀመሪያ በአድሚን ፓስወርድ ይግቡ።");
+        return;
+    }
+
     if (members.length === 0) {
         alert("⚠️ ምንም የተመዘገበ አባል የለም!");
         return;
@@ -107,19 +112,30 @@ function finalizeWinner(eligible) {
     const idx = members.findIndex(m => m.name === winner.name);
     if (idx !== -1) members[idx].won = true;
 
+    // 5ቱም ቀናት ሙሉ በሙሉ በሁሉም አባላት ተሞልተው ከሆነ (checked) ቲክዎቹን በራሱ ሪሴት (ባዶ) ማድረግ
+    const allDaysFilled = members.length > 0 && members.every(m => m.days && m.days.every(d => d === true));
+    if (allDaysFilled) {
+        members.forEach(m => {
+            m.days = [false, false, false, false, false];
+        });
+        alert("🔄 የ 5ቱ ቀናት እቁብ ተጠናቆ ቲክዎቹ በራሳቸው አዲስ ዙር እንዲጀምሩ ተደርገዋል!");
+    }
+
     renderMembers();
     
     const winnerDisplay = document.getElementById("winnerNameDisplay");
     if (winnerDisplay) winnerDisplay.innerText = winner.name + " 🏆 (አሸናፊ!)";
 
     const genderText = winner.gender === 'ሴት' ? "የዚህ ዙር ዕጣ የወጣላት" : "የዚህ ዙር ዕጣ የወጣለት";
+    const congratsText = winner.gender === 'ሴት' ? "እንኳን ደስ አለሽ!" : "እንኳን ደስ አለህ!";
+    
     const telegramMsg = `🎉 *K Y Digital Equb - Live Draw Result* 🎉\n\n` +
                         `የዚህ ዙር ዕጣ አሸናፊ:\n` +
                         `👤 ${genderText}: *${winner.name}*\n` +
                         `💵 የዕቁብ ክፍያ መጠን: 50 ብር\n` +
                         `🏆 አጠቃላይ ድምር: 25,000 ብር\n\n` +
                         `💳 ለዕቁብ አባላት ብቻ የብድር አገልግሎት እናመቻቻለን::\n\n` +
-                        `እንኳን ደስ አላችሁ! 🎊 K Y Digital Equb`;
+                        `${congratsText} 🎊 K Y Digital Equb`;
 
     const shareBtn = document.getElementById("telegramShareBtn");
     if (shareBtn) {
