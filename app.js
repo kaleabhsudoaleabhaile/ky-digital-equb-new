@@ -112,18 +112,18 @@ function finalizeWinner(eligible) {
     const winnerDisplay = document.getElementById("winnerNameDisplay");
     if (winnerDisplay) winnerDisplay.innerText = winner.name + " 🏆 (አሸናፊ!)";
 
-    const genderText = winner.gender === 'ሴት' ? "ዕጣው የወጣላት" : "ዕጣው የወጣለት";
+    const genderText = winner.gender === 'ሴት' ? "የዚህ ዙር ዕጣ የወጣላት" : "የዚህ ዙር ዕጣ የወጣለት";
     const telegramMsg = `🎉 *K Y Digital Equb - Live Draw Result* 🎉\n\n` +
-                        `የዛሬው ዘር ዕጣ አሸናፊ:\n` +
+                        `የዚህ ዙር ዕጣ አሸናፊ:\n` +
                         `👤 ${genderText}: *${winner.name}*\n` +
                         `💵 የዕቁብ ክፍያ መጠን: 50 ብር\n` +
                         `🏆 አጠቃላይ ድምር: 25,000 ብር\n\n` +
-                        `🔗 ቻናላችን: https://t.me/ky_digital_equb_channel\n\n` +
+                        `💳 ለዕቁብ አባላት ብቻ የብድር አገልግሎት እናመቻቻለን::\n\n` +
                         `እንኳን ደስ አላችሁ! 🎊 K Y Digital Equb`;
 
     const shareBtn = document.getElementById("telegramShareBtn");
     if (shareBtn) {
-        const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent("https://t.me/ky_digital_equb_channel")}&text=${encodeURIComponent(telegramMsg)}`;
+        const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent("")}&text=${encodeURIComponent(telegramMsg)}`;
         shareBtn.href = telegramUrl;
         shareBtn.style.display = "inline-block";
     }
