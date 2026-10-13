@@ -3,18 +3,27 @@ let isAdmin = localStorage.getItem("ky_is_admin_new") === "true";
 const BOT_TOKEN = "8993924043:AAHtYJM0TBJJm7wM1VAe4Yd0vNPj6pNtc0o";
 const CHANNEL_USERNAME = "@ky_digital_equb_channel";
 
-// ወደ ቴሌግራም ቻናል መልእክት መላኪያ (Image/Iframe method ለ CORS ማለፊያ)
-function sendTelegramNotification(message) {
-    const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${encodeURIComponent(CHANNEL_USERNAME)}&text=${encodeURIComponent(message)}&parse_mode=Markdown`;
-    
-    // በ iframe አማካኝነት CORSን አልፎ መልእክቱን ወደ ቴሌግራም መላክ
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    iframe.src = url;
-    document.body.appendChild(iframe);
-    setTimeout(() => {
-        document.body.removeChild(iframe);
-    }, 3000);
+// አስተማማኝ የቴሌግራም መላኪያ (Fetch with Telegram API)
+async function sendTelegramNotification(message) {
+    const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+    try {
+        await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chat_id: CHANNEL_USERNAME,
+                text: message,
+                parse_mode: 'Markdown'
+            })
+        });
+    } catch (e) {
+        // ፋል ሲያደርግ በ Iframe በ አማራጭነት መላክ
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${encodeURIComponent(CHANNEL_USERNAME)}&text=${encodeURIComponent(message)}&parse_mode=Markdown`;
+        document.body.appendChild(iframe);
+        setTimeout(() => document.body.removeChild(iframe), 3000);
+    }
 }
 
 function loginAdmin() {
@@ -58,10 +67,10 @@ function renderMembers() {
         if (waitingText) waitingText.style.display = "none";
     } else {
         if (addCard) addCard.style.display = "none";
-        if (adminSec) adminSec.style.display = "none";
+        if (adminSec) addCard.style.display = "none";
         if (loginSec) loginSec.style.display = "block";
-        if (drawBtn) drawBtn.style.display = "none";
-        if (waitingText) waitingText.style.display = "block";
+        if (drawBtn) drawBtn.style.display = "block"; // ሁሉም ሰው ማየት እንዲችል
+        if (waitingText) waitingText.style.display = "none";
     }
 
     members.forEach((m, index) => {
@@ -91,39 +100,38 @@ function renderMembers() {
     localStorage.setItem("ky_members_new", JSON.stringify(members));
 }
 
+// Live Spin & Draw Simulation
 function drawEqub() {
-    if (!isAdmin) return;
-    
     if (members.length === 0) {
         alert("⚠️ ምንም የተመዘገበ አባል የለም!");
         return;
     }
     
-    let activeDayIndex = members[0].days.findIndex(day => day === false);
-    if (activeDayIndex === -1) activeDayIndex = 4;
-
-    const unpaid = members.filter(m => !m.days || m.days[activeDayIndex] !== true);
-    if (unpaid.length > 0) {
-        alert(`⚠️ እጣ ማውጣት አይቻልም! ቀን ${activeDayIndex + 1} ላይ ያልከፈሉ/ቲክ ያልተደረጉ ${unpaid.length} አባላት አሉ።`);
-        return;
-    }
-
     const eligible = members.filter(m => !m.won);
     if (eligible.length === 0) {
         alert("⚠️ ለሁሉም አባላት ዕጣ ወጥቷል!");
         return;
     }
 
+    const winnerDisplay = document.getElementById("winnerNameDisplay");
+    let counter = 0;
+    const spinInterval = setInterval(() => {
+        const randomMember = eligible[Math.floor(Math.random() * eligible.length)];
+        if (winnerDisplay) {
+            winnerDisplay.innerText = "🎲 " + randomMember.name + " እየተሽከረከረ ነው...";
+        }
+        counter++;
+        if (counter > 15) {
+            clearInterval(spinInterval);
+            finalizeWinner(eligible);
+        }
+    }, 100);
+}
+
+function finalizeWinner(eligible) {
     const winner = eligible[Math.floor(Math.random() * eligible.length)];
     const idx = members.findIndex(m => m.name === winner.name);
     if (idx !== -1) members[idx].won = true;
-
-    const allDaysFilled = members.every(m => m.days.every(d => d === true));
-    if (allDaysFilled || activeDayIndex === 4) {
-        members.forEach(m => {
-            m.days = [false, false, false, false, false];
-        });
-    }
 
     renderMembers();
     
@@ -139,9 +147,9 @@ function drawEqub() {
     sendTelegramNotification(telegramMsg);
     
     const winnerDisplay = document.getElementById("winnerNameDisplay");
-    if (winnerDisplay) winnerDisplay.innerText = winner.name + " 🏆";
+    if (winnerDisplay) winnerDisplay.innerText = winner.name + " 🏆 (አሸናፊ!)";
     
-    alert(`🎉 አሸናፊ: ${winner.name} (ወደ ቴሌግራም ቻናል ተልኳል!)`);
+    alert(`🎉 አሸናፊ: ${winner.name} (ዕጣው ወጥቷል እና ወደ ቴሌግራም ቻናል ተልኳል!)`);
 }
 
 function toggleDay(mIdx, dIdx) {
@@ -177,4 +185,11 @@ function addMember() {
     renderMembers();
 }
 
-document.addEventListener("DOMContentLoaded", renderMembers);
+document.addEventListener("DOMContentLoaded", () => {
+    renderMembers();
+    // በሌሎች ተጠቃሚዎች ብራውዘር ላይ ዳታው እንዲመሳሰል (Sync) ማድረግ
+    window.addEventListener("storage", () => {
+        members = JSON.parse(localStorage.getItem("ky_members_new")) || [];
+        renderMembers();
+    });
+});
