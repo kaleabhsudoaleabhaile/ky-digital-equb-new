@@ -9,7 +9,7 @@ if (!firebase.apps.length) {
 }
 const db = firebase.database();
 const membersRef = db.ref("ky_members_new");
-const spinRef = db.ref("ky_active_spin"); // 👈 የ Spin Real-time ሁኔታ ማስተካከያ
+const spinRef = db.ref("ky_active_spin");
 
 let members = [];
 let isAdmin = localStorage.getItem("ky_is_admin_new") === "true";
@@ -21,7 +21,7 @@ membersRef.on("value", (snapshot) => {
     renderMembers();
 });
 
-// 👈 የ Real-time Spin ማዳመጫ (ሌላ ስልክ ላይ Spin ሲደረግ እዚህ ጋር ይመጣል)
+// የ Real-time Spin ማዳመጫ
 spinRef.on("value", (snapshot) => {
     const spinData = snapshot.val();
     if (spinData && spinData.spinning) {
@@ -125,10 +125,8 @@ function drawEqub() {
         return;
     }
 
-    // አሸናፊውን እዚህ ጋር አስቀድመን እንመርጣለን
     const winner = eligible[Math.floor(Math.random() * eligible.length)];
 
-    // 👈 የ Spin ሁኔታን ወደ Firebase እንልካለን (ይህም ሌሎቹ ስልኮች ላይ በ Real-time ያሳያል)
     spinRef.set({
         spinning: true,
         winnerName: winner.name,
@@ -136,7 +134,6 @@ function drawEqub() {
     });
 }
 
-// 👈 እዚህ ጋር አኒሜሽኑ ይሰራል (ለሁለቱም ስልኮች)
 function runSpinAnimationLocally(targetWinnerName) {
     const winnerDisplay = document.getElementById("winnerNameDisplay");
     let counter = 0;
@@ -151,14 +148,12 @@ function runSpinAnimationLocally(targetWinnerName) {
         if (counter > 15) {
             clearInterval(spinInterval);
             
-            // አስተዳዳሪው ከሰራ ብቻ ውጤቱን ቋሚ (Finalize) ያደርገዋል
             if (isAdmin) {
                 finalizeWinner(targetWinnerName);
             } else {
                 showWinnerUI(targetWinnerName);
             }
 
-            // 👈 አንዴ ከጨረሰ በኋላ የ Spin ሁኔታውን እናጠፋዋለን
             setTimeout(() => {
                 if (isAdmin) spinRef.set({ spinning: false });
             }, 1000);
@@ -185,28 +180,30 @@ function showWinnerUI(winnerName) {
     const winner = members.find(m => m.name === winnerName) || { name: winnerName, gender: "ወንድ" };
     const winnerDisplay = document.getElementById("winnerNameDisplay");
     
+    // 👈 1. ጽሁፉን እዚህ ጋር አስተካክለነዋል
     if (winnerDisplay) {
-        winnerDisplay.innerText = winner.name + " 🏆 (አሸናፊ!)";
+        winnerDisplay.innerText = "አሸናፊ " + winner.name + " 🏆 (ዕጣው ይፋ ሆኗል)";
     }
 
     const genderText = winner.gender === 'ሴት' ? "የዚህች ሀር ዕጣ የወጣችው" : "የዚህ ሀር ዕጣ የወጣው";
     const congratsText = winner.gender === 'ሴት' ? "እንኳን ደስ አለሽ!" : "እንኳን ደስ አለህ!";
 
     const telegramMsg = `🎉 *K Y Digital Equb - Live Draw Result* 🎉\n\n` +
-        `🏆 ${genderText}: *${winner.name}*🏆\n\n` +
-        `💵 የቀቁብ ክፍያ መጠን: 50 ብር\n` +
+        `🏆 ${genderText}: *${winner.name}* 🏆\n\n` +
+        `💵 የዕቁብ ክፍያ መጠን: 50 ብር\n` +
         `🏆 አጠቃላይ ድምር: 25,000 ብር\n` +
         `💳 ለዕቁብ አባላት ብቻ የብድር አገልግሎት እንሰጣለን::\n\n` +
         `🎉 ${congratsText}\n`;
 
     const shareBtn = document.getElementById("telegramShareBtn");
     if (shareBtn) {
-        const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent("")}&text=${encodeURIComponent(telegramMsg)}`;
+        // 👈 2. የቴሌግራም አፕሊኬሽኑን ቀጥታ የሚከፍት የ ሼር URL ማስተካከያ
+        const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent("https://qub-new.vercel.app")}&text=${encodeURIComponent(telegramMsg)}`;
         shareBtn.href = telegramUrl;
         shareBtn.style.display = "inline-block";
     }
 
-    alert(`🎉 አሸናፊ: ${winner.name} (ዕጣው በስኬት ወጥቷል! አሁን በሁሉም ስልኮች ላይ በሰላም ታይቷል)`);
+    alert(`🎉 አሸናፊ: ${winner.name} (ዕጣው በስኬት ወጥቷል!)`);
 }
 
 function toggleDay(mIdx, dIdx) {
