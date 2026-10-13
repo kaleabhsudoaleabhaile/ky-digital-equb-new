@@ -1,30 +1,5 @@
 let members = JSON.parse(localStorage.getItem("ky_members_new")) || [];
 let isAdmin = localStorage.getItem("ky_is_admin_new") === "true";
-const BOT_TOKEN = "8993924043:AAHtYJM0TBJJm7wM1VAe4Yd0vNPj6pNtc0o";
-const CHANNEL_USERNAME = "@ky_digital_equb_channel";
-
-// አስተማማኝ የቴሌግራም መላኪያ (Fetch with Telegram API)
-async function sendTelegramNotification(message) {
-    const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-    try {
-        await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                chat_id: CHANNEL_USERNAME,
-                text: message,
-                parse_mode: 'Markdown'
-            })
-        });
-    } catch (e) {
-        // ፋል ሲያደርግ በ Iframe በ አማራጭነት መላክ
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.src = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${encodeURIComponent(CHANNEL_USERNAME)}&text=${encodeURIComponent(message)}&parse_mode=Markdown`;
-        document.body.appendChild(iframe);
-        setTimeout(() => document.body.removeChild(iframe), 3000);
-    }
-}
 
 function loginAdmin() {
     const pass = prompt("የአድሚን ፓስወርድ ያስገቡ:");
@@ -67,9 +42,9 @@ function renderMembers() {
         if (waitingText) waitingText.style.display = "none";
     } else {
         if (addCard) addCard.style.display = "none";
-        if (adminSec) addCard.style.display = "none";
+        if (adminSec) adminSec.style.display = "none";
         if (loginSec) loginSec.style.display = "block";
-        if (drawBtn) drawBtn.style.display = "block"; // ሁሉም ሰው ማየት እንዲችል
+        if (drawBtn) drawBtn.style.display = "block";
         if (waitingText) waitingText.style.display = "none";
     }
 
@@ -100,7 +75,6 @@ function renderMembers() {
     localStorage.setItem("ky_members_new", JSON.stringify(members));
 }
 
-// Live Spin & Draw Simulation
 function drawEqub() {
     if (members.length === 0) {
         alert("⚠️ ምንም የተመዘገበ አባል የለም!");
@@ -135,21 +109,10 @@ function finalizeWinner(eligible) {
 
     renderMembers();
     
-    const genderText = winner.gender === 'ሴት' ? "ዕጣው የወጣላት" : "ዕጣው የወጣለት";
-    const telegramMsg = `🎉 *K Y Digital Equb - Live Draw Result* 🎉\n\n` +
-                        `የዛሬው ዘር ዕጣ አሸናፊ:\n` +
-                        `👤 ${genderText}: *${winner.name}*\n` +
-                        `💵 የዕቁብ ክፍያ መጠን: 50 ብር\n` +
-                        `🏆 አጠቃላይ ድምር: 25,000 ብር\n\n` +
-                        `🔗 ቻናላችን: https://t.me/ky_digital_equb_channel\n\n` +
-                        `እንኳን ደስ አላችሁ! 🎊 K Y Digital Equb`;
-    
-    sendTelegramNotification(telegramMsg);
-    
     const winnerDisplay = document.getElementById("winnerNameDisplay");
     if (winnerDisplay) winnerDisplay.innerText = winner.name + " 🏆 (አሸናፊ!)";
     
-    alert(`🎉 አሸናፊ: ${winner.name} (ዕጣው ወጥቷል እና ወደ ቴሌግራም ቻናል ተልኳል!)`);
+    alert(`🎉 አሸናፊ: ${winner.name} (ዕጣው በስኬት ወጥቷል!)`);
 }
 
 function toggleDay(mIdx, dIdx) {
@@ -187,7 +150,6 @@ function addMember() {
 
 document.addEventListener("DOMContentLoaded", () => {
     renderMembers();
-    // በሌሎች ተጠቃሚዎች ብራውዘር ላይ ዳታው እንዲመሳሰል (Sync) ማድረግ
     window.addEventListener("storage", () => {
         members = JSON.parse(localStorage.getItem("ky_members_new")) || [];
         renderMembers();
