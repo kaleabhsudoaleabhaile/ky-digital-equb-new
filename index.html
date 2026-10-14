@@ -175,6 +175,7 @@
 <body>
 
 <div class="container">
+  <!-- ርዕሱን 3 ጊዜ ስትነካው የአድሚን መግቢያ ይከፈታል -->
   <h1 class="main-title" onclick="handleTitleClick()">🏆 K Y Digital Equb 🏆</h1>
   <div class="sub-title">የዕቁብ Live ዕጣ ማውጫ ገፅ</div>
 
@@ -255,7 +256,7 @@
   let lastSpinTime = 0;
   let members = [];
 
-  // ርዕሱን 3 ጊዜ ሲነኩ አድሚን ይከፍታል
+  // ርዕሱን 3 ጊዜ ስትነካ አድሚን መግቢያ ይከፍታል
   function handleTitleClick() {
     clickCount++;
     if (clickCount === 1) {
@@ -348,8 +349,9 @@
       tr.innerHTML = `
         <td><b>${m.name}</b></td>
         <td><small>${m.gender || 'ወንድ'}</small></td>
-        ${mDays.map((d, dayIdx) => `<td><input type="checkbox" ${d ? 'checked' : ''} onchange="toggleDay(${idx}, ${dayIdx})"></td>`).join('')}
-        <td><span style="color: ${statusColor}; font-weight: bold;">${statusText}</span></td>${isAdmin ? `<td>
+        ${mDays.map((d, dayIdx) => `<td><input type="checkbox" ${d ? 'checked' : ''} onchange="toggleDay(${idx},${dayIdx})"></td>`).join('')}
+        <td><span style="color: ${statusColor}; font-weight: bold;">${statusText}</span></td>
+        ${isAdmin ? `<td>
           <button class="btn-action btn-edit" onclick="editMember(${idx})">✏️</button>
           <button class="btn-action btn-delete" onclick="deleteMember(${idx})">🗑️</button>
         </td>` : ''}
@@ -433,4 +435,29 @@
 
           const congratMsg = (winnerGender === 'ሴት') ? "እንኳን ደስ አለሽ!" : "እንኳን ደስ አለህ!";
           
-          currentShareText = `🎉 *K Y Digital Equb - Live Draw Result* 🎉\n\nየዚህ ዙር ዕጣ አሸናፊ:\n👤 የዚህ ዙር ዕጣ የወጣለት: *${winnerName}*\n💵 የዕቁብ ክፍያ መጠን: 50 ብር\n🏆 አጠቃላይ ድምር: 25,000 ብር\n\n💳 ለዕቁብ አባላት ብቻ የብድር አገልግሎት እናመቻቻለን::\n\n${congratMsg} 
+          currentShareText = `🎉 *K Y Digital Equb - Live Draw Result* 🎉\n\nየዚህ ዙር ዕጣ አሸናፊ:\n👤 የዚህ ዙር ዕጣ የወጣለት: *${winnerName}*\n💵 የዕቁብ ክፍያ መጠን: 50 ብር\n🏆 አጠቃላይ ድምር: 25,000 ብር\n\n💳 ለዕቁብ አባላት ብቻ የብድር አገልግሎት እናመቻቻለን::\n\n${congratMsg} 🎊 K Y Digital Equb`;
+          
+          document.getElementById('share-btn').style.display = 'block';
+        }
+      }
+    }, 100);
+  }
+
+  function shareToTelegram(e) {
+    e.preventDefault();
+    if (!currentShareText) return;
+    
+    const tgDirectUrl = `tg://msg_url?url=&text=${encodeURIComponent(currentShareText)}`;
+    const tgWebUrl = `https://t.me/share/url?url=&text=${encodeURIComponent(currentShareText)}`;
+
+    window.location.href = tgDirectUrl;
+    setTimeout(() => {
+      window.open(tgWebUrl, '_blank');
+    }, 1000);
+  }
+
+  renderTable();
+</script>
+
+</body>
+</html>
