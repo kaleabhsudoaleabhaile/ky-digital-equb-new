@@ -134,9 +134,9 @@
   <h1>🏆 K Y Digital Equb 🏆</h1>
   <div class="sub-title">የዕቁብ Live ዕጣ ማውጫ ገፅ</div>
 
-  <!-- አድሚን መግቢያ ቁልፍ (በምስጢር የተያዘ - በድብቅ ቲክ ስትጫን አድሚን ሳጥን ይመጣል) -->
-  <div class="card" style="padding: 8px;">
-    <button class="btn" style="background-color: #1b263b; color: #778da9; font-size: 13px; padding: 6px;" onclick="secretAdminLogin()">🔑 አድሚን መግቢያ</button>
+  <!-- የአድሚን መግቢያ ቁልፍ (በሌሎች ስልክ ፈጽሞ አይታይም - በድብቅ ርዕሱን በመንካት ብቻ አድሚን መግቢያ ይመጣል) -->
+  <div class="card" style="padding: 10px; background-color: transparent; box-shadow: none;">
+    <button class="btn" style="background-color: #f5a623; color: #000;" onclick="secretAdminLogin()">🔑 አድሚን በመሆን ግባ</button>
   </div>
 
   <!-- የዕጣ ማውጫ ቦታ -->
@@ -182,10 +182,22 @@
 <script>
   let isAdmin = false;
 
+  // ከሌሎች ተጠቃሚዎች ዓይን ለመደብቅ በራስሰር በLocalStorage ወይም በድብቅ ይያዛል
+  // በአንተ ስልክ ላይ ብቻ አድሚን ሆኖ እንዲቆይ የሚደረግበት መንገድ
+  window.onload = function() {
+    // ከዚህ በፊት በአድሚንነት ከገባህ በራስሰር እንዲይዘው ማድረግ ይቻላል
+    if(localStorage.getItem('ky_admin_logged') === 'true') {
+      isAdmin = true;
+      document.getElementById('admin-spin-area').style.display = 'block';
+      document.getElementById('table-wrapper').classList.remove('user-readonly');
+    }
+  };
+
   function secretAdminLogin() {
     const pass = prompt("እባክዎን የአድሚን ይለፍ ቃል (Password) ያስገቡ:");
     if (pass === "182418") {
       isAdmin = true;
+      localStorage.setItem('ky_admin_logged', 'true');
       document.getElementById('admin-spin-area').style.display = 'block';
       document.getElementById('table-wrapper').classList.remove('user-readonly');
       alert("በአድሚንነት በስኬት ገብተዋል!");
