@@ -352,7 +352,6 @@
       return;
     }
 
-    // ዕጣ ያላወጡ አባላት
     const activeMembers = members.filter(m => !m.hasWon);
     
     if (activeMembers.length === 0) {
@@ -360,7 +359,6 @@
       return;
     }
 
-    // ህግ 1፦ ሁሉም ያላወጡ አባላት የ 5 ቀኑን ክፍያ ሙሉ በሙሉ መክፈል አለባቸው
     const allActivePaid = activeMembers.every(m => m.days.every(d => d === true));
     
     if (!allActivePaid) {
@@ -399,12 +397,10 @@
         shuffleBox.innerHTML = `🎉 ${winnerName} 🎉`;
         document.getElementById('status-display').innerHTML = `🎉 አሸናፊ፦ <b>${winnerName}</b> 🏆`;
 
-        // 1. አሸናፊውን ዕጣ እንደወጣለት መመዝገብ
         if (members[winnerIdx]) {
           members[winnerIdx].hasWon = true;
         }
 
-        // 2. ህግ 2፦ ከዕጣ በኋላ የሁሉም አባላት የ 5 ቀናት ክፍያ በራስ-ሰር ባዶ (Reset) ማድረግ
         members.forEach(m => {
           m.days = [false, false, false, false, false];
         });
@@ -414,7 +410,7 @@
         if (isAdmin) {
           const congratMsg = (winnerGender === 'ሴት') ? "እንኳን ደስ አለሽ!" : "እንኳን ደስ አለህ!";
           
-          currentShareText = `🎉 *K Y Digital Equb - Live Draw Result* 🎉\n\nየዚህ ዙር ዕጣ አሸናፊ:\n👤 የዚህ ዙር ዕጣ የወጣለት: *${winnerName}*\n💵 የዕቁብ ክፍያ መጠን: 50 ብር\n🏆 አጠቃላይ ድምር: 25,000 ብር\n\n💳 ለዕቁብ አባላት ብቻ የብድር አገልግሎት እንመቻቻለን::\n\n${congratMsg} 🎊 K Y Digital Equb`;
+          currentShareText = `🎉 *K Y Digital Equb - Live Draw Result* 🎉\n\nየዚህ ዙር ዕጣ አሸናፊ:\n👤 የዚህ ዙር ዕጣ የወጣለት: *${winnerName}*\n💵 የዕቁብ ክፍያ መጠን: 50 ብር\n🏆 አጠቃላይ ድምር: 25,000 ብር\n\n💳 ለዕቁብ አባላት ብቻ የብድር አገልግሎት እናመቻቻለን::\n\n${congratMsg} 🎊 K Y Digital Equb`;
           
           document.getElementById('share-btn').style.display = 'block';
         }
