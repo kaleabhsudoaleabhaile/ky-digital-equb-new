@@ -11,7 +11,6 @@
       --accent-color: #f5a623;
       --text-color: #e0e1dd;
       --success-color: #2ec4b6;
-      --button-bg: #3a86ff;
     }
 
     body {
@@ -114,7 +113,6 @@
       transform: scale(1.2);
     }
 
-    /* ተጠቃሚዎች ቲክ እንዳያደርጉ ይከለክላል */
     .user-readonly input[type="checkbox"] {
       pointer-events: none;
     }
@@ -136,9 +134,9 @@
   <h1>🏆 K Y Digital Equb 🏆</h1>
   <div class="sub-title">የዕቁብ Live ዕጣ ማውጫ ገፅ</div>
 
-  <!-- የአድሚን መግቢያ ቁልፍ (ሁልጊዜ ከላይ ይታያል) -->
-  <div id="admin-login-card" class="card">
-    <button id="login-btn" class="btn" onclick="toggleAdminAuth()">🔑 አድሚን በመሆን ግባ</button>
+  <!-- አድሚን መግቢያ ቁልፍ (በምስጢር የተያዘ - በድብቅ ቲክ ስትጫን አድሚን ሳጥን ይመጣል) -->
+  <div class="card" style="padding: 8px;">
+    <button class="btn" style="background-color: #1b263b; color: #778da9; font-size: 13px; padding: 6px;" onclick="secretAdminLogin()">🔑 አድሚን መግቢያ</button>
   </div>
 
   <!-- የዕጣ ማውጫ ቦታ -->
@@ -151,7 +149,7 @@
     
     <!-- Spin Button (አድሚን ሲገባ ብቻ ይወጣል) -->
     <div id="admin-spin-area" style="display: none;">
-      <button class="btn btn-spin" onclick="spinWheel()">🎲 ዕጣ አውጣ (Spin)</button>
+      <button class="btn btn-spin" onclick="triggerSpin()">🎲 ዕጣ አውጣ (Spin)</button>
     </div>
 
     <div id="winner-display" class="winner-box">አሸናፊ አልተመረጠም</div>
@@ -184,25 +182,15 @@
 <script>
   let isAdmin = false;
 
-  function toggleAdminAuth() {
-    if (!isAdmin) {
-      const pass = prompt("እባክዎን የአድሚን ይለፍ ቃል (Password) ያስገቡ:");
-      if (pass === "182418") { // አዲሱ የይለፍ ቃል
-        isAdmin = true;
-        document.getElementById('admin-spin-area').style.display = 'block';
-        document.getElementById('table-wrapper').classList.remove('user-readonly');
-        document.getElementById('login-btn').innerHTML = "✅ በአድሚንነት ገብተዋል (ወጣ)";
-        document.getElementById('login-btn').style.backgroundColor = "#2ec4b6";
-        alert("በአድሚንነት በስኬት ገብተዋል!");
-      } else {
-        alert("የተሳሳተ ይለፍ ቃል!");
-      }
+  function secretAdminLogin() {
+    const pass = prompt("እባክዎን የአድሚን ይለፍ ቃል (Password) ያስገቡ:");
+    if (pass === "182418") {
+      isAdmin = true;
+      document.getElementById('admin-spin-area').style.display = 'block';
+      document.getElementById('table-wrapper').classList.remove('user-readonly');
+      alert("በአድሚንነት በስኬት ገብተዋል!");
     } else {
-      isAdmin = false;
-      document.getElementById('admin-spin-area').style.display = 'none';
-      document.getElementById('table-wrapper').classList.add('user-readonly');
-      document.getElementById('login-btn').innerHTML = "🔑 አድሚን በመሆን ግባ";
-      document.getElementById('login-btn').style.backgroundColor = "#f5a623";
+      alert("የተሳሳተ ይለፍ ቃል!");
     }
   }
 
@@ -236,13 +224,13 @@
   const colors = ['#f5a623', '#3a86ff', '#2ec4b6', '#e63946', '#9d4edd'];
   let startAngle = 0;
 
-  function drawWheel() {
+  function drawWheel(angleOffset = 0) {
     const numOptions = members.length;
     const arcSize = (2 * Math.PI) / numOptions;
     ctx.clearRect(0, 0, 260, 260);
 
     members.forEach((m, i) => {
-      const angle = startAngle + i * arcSize;
+      const angle = startAngle + angleOffset + i * arcSize;
       ctx.beginPath();
       ctx.fillStyle = colors[i % colors.length];
       ctx.moveTo(130, 130);
@@ -260,38 +248,49 @@
     });
   }
 
-  function spinWheel() {
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'ky_spin_data') {
+      const data = JSON.parse(e.newValue);
+      animateSpinTo(data.targetAngle, data.winner);
+    }
+  });
+
+  function triggerSpin() {
     if (!isAdmin) return;
-    let spinAngleStart = Math.random() * 10 + 10;
-    let spinTime = 0;
-    let spinTimeTotal = Math.random() * 3000 + 4000;
-
-    function rotate() {
-      spinTime += 30;
-      if (spinTime >= spinTimeTotal) {
-        stopRotate();
-        return;
-      }
-      const spinAngle = spinAngleStart - easeOut(spinTime, 0, spinAngleStart, spinTimeTotal);
-      startAngle += (spinAngle * Math.PI / 180);
-      drawWheel();
-      requestAnimationFrame(rotate);
-    }
-
-    function stopRotate() {
-      const degrees = startAngle * 180 / Math.PI + 90;
-      const arcr = 360 / members.length;
-      const index = Math.floor((360 - (degrees % 360)) / arcr) % members.length;
-      document.getElementById('winner-display').innerHTML = `🎉 አሸናፊ፦ <b>${members[index].name}</b> 🎉`;
-    }
-
-    rotate();
+    const randomWinnerIndex = Math.floor(Math.random() * members.length);
+    const arcSize = 360 / members.length;
+    const targetAngle = 360 * 5 + (360 - (randomWinnerIndex * arcSize + arcSize / 2));
+    
+    const spinData = {
+      targetAngle: targetAngle,
+      winner: members[randomWinnerIndex].name,
+      time: Date.now()
+    };
+    localStorage.setItem('ky_spin_data', JSON.stringify(spinData));
+    animateSpinTo(targetAngle, members[randomWinnerIndex].name);
   }
 
-  function easeOut(t, b, c, d) {
-    const ts = (t /= d) * t;
-    const tc = ts * t;
-    return b + c * (tc + -3 * ts + 3 * t);
+  function animateSpinTo(targetDegrees, winnerName) {
+    let currentDeg = 0;
+    let spinDuration = 4000;
+    let startTime = null;
+
+    function step(timestamp) {
+      if (!startTime) startTime = timestamp;
+      let progress = timestamp - startTime;
+      let ease = 1 - Math.pow(1 - Math.min(progress / spinDuration, 1), 3);
+      currentDeg = targetDegrees * ease;
+      
+      startAngle = (currentDeg * Math.PI) / 180;
+      drawWheel();
+
+      if (progress < spinDuration) {
+        requestAnimationFrame(step);
+      } else {
+        document.getElementById('winner-display').innerHTML = `🎉 አሸናፊ፦ <b>${winnerName}</b> 🎉`;
+      }
+    }
+    requestAnimationFrame(step);
   }
 
   drawWheel();
