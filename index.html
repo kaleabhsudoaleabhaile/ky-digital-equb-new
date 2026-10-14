@@ -113,7 +113,6 @@
       margin: 15px 0;
     }
 
-    /* Ludo Master Style Wheel Container */
     .wheel-container {
       position: relative;
       margin: 15px auto;
@@ -195,7 +194,7 @@
       <label style="font-size: 13px; color: #778da9;">አዲስ አባል ስም አስገባ:</label>
       <input type="text" id="new-member-name" class="input-field" placeholder="የተማሪውን ስም ጻፍ...">
       
-      <label style="font-size: 13px; color: #778da9; margin-top: 8px; display: block;">ፆታ መርዝ:</label>
+      <label style="font-size: 13px; color: #778da9; margin-top: 8px; display: block;">ፆታ መረጥ:</label>
       <select id="new-member-gender" class="select-field">
         <option value="ወንድ">ወንድ</option>
         <option value="ሴት">ሴት</option>
@@ -206,7 +205,7 @@
 
     <button class="btn btn-spin" onclick="triggerSpin()">🎲 ዕጣ አውጣ (Spin)</button>
     
-    <a id="share-btn" href="#" class="btn-share">
+    <a id="share-btn" href="#" class="btn-share" onclick="shareToTelegram(event)">
       📥 ውጤቱን ወደ ቴሌግራም ቻናል ሼር አድርግ
     </a>
   </div>
@@ -253,6 +252,7 @@
   let isAdmin = false;
   let clickCount = 0;
   let clickTimer = null;
+  let currentShareText = "";
 
   function handleTitleClick() {
     clickCount++;
@@ -294,7 +294,7 @@
       alert("እባክዎን ስም ያስገቡ!");
       return;
     }
-    members.push({ name: name, gender: gender, days: [false, false, false, false, false], paid: false });
+    members.push({ name: name, gender: gender, days: [false, false, false, false, false], hasWon: false });
     nameInput.value = '';
     saveMembers();
   }
@@ -326,15 +326,15 @@
     }
 
     members.forEach((m, idx) => {
-      const allDaysChecked = m.days.every(d => d === true);
-      m.paid = allDaysChecked;
+      let statusText = m.hasWon ? 'ዕጣ የወጣለት' : (m.days.every(d => d === true) ? 'ተከፍሏል' : 'አልተከፈለም');
+      let statusColor = m.hasWon ? '#f5a623' : (m.days.every(d => d === true) ? '#2ec4b6' : '#e63946');
 
       let tr = document.createElement('tr');
       tr.innerHTML = `
         <td><b>${m.name}</b></td>
         <td><small>${m.gender || 'ወንድ'}</small></td>
-        ${m.days.map((d, dayIdx) => `<td><input type="checkbox" ${d ? 'checked' : ''} onchange="toggleDay(${idx},${dayIdx})"></td>`).join('')}
-        <td><span style="color: ${m.paid ? '#2ec4b6' : '#e63946'}">${m.paid ? 'ተከፍሏል' : 'አልተከፈለም'}</span></td>
+        ${m.days.map((d, dayIdx) => `<td><input type="checkbox" ${d ? 'checked' : ''} onchange="toggleDay(${idx}, ${dayIdx})" ${m.hasWon ? 'disabled' : ''}></td>`).join('')}
+        <td><span style="color: ${statusColor}; font-weight: bold;">${statusText}</span></td>
         ${isAdmin ? `<td>
           <button class="btn-action btn-edit" onclick="editMember(${idx})">✏️</button>
           <button class="btn-action btn-delete" onclick="deleteMember(${idx})">🗑️</button>
@@ -346,6 +346,7 @@
 
   function toggleDay(memberIdx, dayIdx) {
     if (!isAdmin) return;
+    if (members[memberIdx].hasWon) return; // ዕጣ የወጣለት አባል አይቀየርም
     members[memberIdx].days[dayIdx] = !members[memberIdx].days[dayIdx];
     saveMembers();
   }
@@ -356,12 +357,15 @@
   let startAngle = 0;
 
   function drawWheel() {
-    if (members.length === 0) return;
-    const numOptions = members.length;
+    // ዕጣ ያላጡ (የቀሩ) አባላትን ብቻ በጎማው ላይ ማሳየት
+    const activeMembers = members.filter(m => !m.hasWon);
+    if (activeMembers.length === 0) return;
+
+    const numOptions = activeMembers.length;
     const arcSize = (2 * Math.PI) / numOptions;
     ctx.clearRect(0, 0, 280, 280);
 
-    members.forEach((m, i) => {
+    activeMembers.forEach((m, i) => {
       const angle = startAngle + i * arcSize;
       ctx.beginPath();
       ctx.fillStyle = colors[i % colors.length];
@@ -378,7 +382,6 @@
       ctx.translate(140 + Math.cos(angle + arcSize / 2) * 85, 140 + Math.sin(angle + arcSize / 2) * 85);
       ctx.rotate(angle + arcSize / 2 + Math.PI / 2);
       
-      // እስከ 100 አባል ቢኖር እንኳ ስሞች በግልጽ እንዲታዩ የጽሁፍ መጠኑን ማስተካከል
       let fontSize = numOptions > 30 ? '9px' : (numOptions > 15 ? '11px' : '13px');
       ctx.font = `bold ${fontSize} sans-serif`;
       ctx.fillText(m.name, -ctx.measureText(m.name).width / 2, 0);
@@ -389,7 +392,7 @@
   window.addEventListener('storage', (e) => {
     if (e.key === 'ky_spin_data') {
       const data = JSON.parse(e.newValue);
-      startLiveSpin(data.targetAngle, data.winner, data.gender);
+      startLiveSpin(data.targetAngle, data.winner, data.gender, data.winnerIdx);
     }
     if (e.key === 'ky_members') {
       members = JSON.parse(e.newValue);
@@ -405,37 +408,41 @@
       return;
     }
 
-    const eligibleMembers = members.filter(m => m.days.every(d => d === true));
+    // ዕጣ ያላወጡ እና 5 ቀናት ክፍያ የሞሉ
+    const eligibleMembers = members.filter(m => !m.hasWon && m.days.every(d => d === true));
     
     if (eligibleMembers.length === 0) {
-      alert("⚠️ 5ቱንም ቀናት ክፍያ (ቲክ) ያላጠናቀቀ አባል ስላለ ዕጣ ማውጣት አይቻልም! (ሁሉም 5 ቀናት መሞላት አለባቸው)");
+      alert("⚠️ 5ቱንም ቀናት ክፍያ ያላጠናቀቁ ወይም ሁሉም ዕጣ ያወጡ ናቸው!");
       return;
     }
 
     const randomWinnerIndex = Math.floor(Math.random() * eligibleMembers.length);
     const winnerObj = eligibleMembers[randomWinnerIndex];
+    
+    const activeMembers = members.filter(m => !m.hasWon);
+    const activeIndex = activeMembers.findIndex(m => m.name === winnerObj.name);
     const originalIndex = members.findIndex(m => m.name === winnerObj.name);
 
-    const arcSize = 360 / members.length;
-    // Ludo Master style: 10 ጊዜ ሙሉ በሙሉ ተሽከረክሮ እንዲያቆም
-    const targetAngle = 360 * 10 + (360 - (originalIndex * arcSize + arcSize / 2));
+    const arcSize = 360 / activeMembers.length;
+    const targetAngle = 360 * 8 + (360 - (activeIndex * arcSize + arcSize / 2));
     
     const spinData = {
       targetAngle: targetAngle,
       winner: winnerObj.name,
       gender: winnerObj.gender || 'ወንድ',
+      winnerIdx: originalIndex,
       time: Date.now()
     };
     localStorage.setItem('ky_spin_data', JSON.stringify(spinData));
-    startLiveSpin(targetAngle, winnerObj.name, winnerObj.gender || 'ወንድ');
+    startLiveSpin(targetAngle, winnerObj.name, winnerObj.gender || 'ወንድ', originalIndex);
   }
 
-  function startLiveSpin(targetDegrees, winnerName, winnerGender) {
+  function startLiveSpin(targetDegrees, winnerName, winnerGender, winnerIdx) {
     document.getElementById('wheel-box').style.display = 'block';
     document.getElementById('status-display').innerHTML = "🎲 ዕጣ በመውጣት ላይ ነው...";
 
     let currentDeg = 0;
-    let spinDuration = 6000; // 6 ሰከንድ ረዘም ብሎ Ludo Master በሚመስል ፊዚክስ ይሽከረከራል
+    let spinDuration = 5000;
     let startTime = null;
 
     function step(timestamp) {
@@ -452,21 +459,38 @@
       } else {
         document.getElementById('status-display').innerHTML = `🎉 አሸናፊ፦ <b>${winnerName}</b> 🏆`;
 
+        // 1. አሸናፊውን ዕጣ እንደወጣለት መመዝገብ እና 5ቱን ቀናት ባዶ (Reset) ማድረግ
+        if (members[winnerIdx]) {
+          members[winnerIdx].hasWon = true;
+          members[winnerIdx].days = [false, false, false, false, false]; // ቲክ ባዶ ተደርጓል
+          saveMembers();
+        }
+
         if (isAdmin) {
           const congratMsg = (winnerGender === 'ሴት') ? "እንኳን ደስ አለሽ!" : "እንኳን ደስ አለህ!";
           
-          const shareText = `🎉 *K Y Digital Equb - Live Draw Result* 🎉\n\nየዚህ ዙር ዕጣ አሸናፊ:\n👤 የዚህ ዙር ዕጣ የወጣለት: *${winnerName}*\n💵 የዕቁብ ክፍያ መጠን: 50 ብር\n🏆 አጠቃላይ ድምር: 25,000 ብር\n\n💳 ለዕቁብ አባላት ብቻ የብድር አገልግሎት እንመቻቻለን::\n\n${congratMsg} 🎊 K Y Digital Equb`;
+          currentShareText = `🎉 *K Y Digital Equb - Live Draw Result* 🎉\n\nየዚህ ዙር ዕጣ አሸናፊ:\n👤 የዚህ ዙር ዕጣ የወጣለት: *${winnerName}*\n💵 የዕቁብ ክፍያ መጠን: 50 ብር\n🏆 አጠቃላይ ድምር: 25,000 ብር\n\n💳 ለዕቁብ አባላት ብቻ የብድር አገልግሎት እንመቻቻለን::\n\n${congratMsg} 🎊 K Y Digital Equb`;
           
-          // Telegram App Direct Share Protocol
-          const telegramUrl = `https://t.me/share/url?url=&text=${encodeURIComponent(shareText)}`;
-          
-          const shareBtn = document.getElementById('share-btn');
-          shareBtn.href = telegramUrl;
-          shareBtn.style.display = 'block';
+          document.getElementById('share-btn').style.display = 'block';
         }
       }
     }
     requestAnimationFrame(step);
+  }
+
+  function shareToTelegram(e) {
+    e.preventDefault();
+    if (!currentShareText) return;
+    
+    // በቴሌግራም አፕሊኬሽን ቀጥታ መላኪያ ድልድይ (tg://)
+    const tgDirectUrl = `tg://msg_url?url=&text=${encodeURIComponent(currentShareText)}`;
+    const tgWebUrl = `https://t.me/share/url?url=&text=${encodeURIComponent(currentShareText)}`;
+
+    // መጀመሪያ አፑን ይከፍታል ካልሆነ ድህረገጹን ይከፍታል
+    window.location.href = tgDirectUrl;
+    setTimeout(() => {
+      window.open(tgWebUrl, '_blank');
+    }, 1000);
   }
 
   renderTable();
