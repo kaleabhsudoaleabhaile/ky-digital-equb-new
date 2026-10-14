@@ -12,7 +12,6 @@
       --text-color: #e0e1dd;
       --success-color: #2ec4b6;
       --blue-btn: #1d72b8;
-      --danger-color: #e63946;
     }
 
     body {
@@ -29,7 +28,6 @@
       margin: 0 auto;
     }
 
-    /* ርዕሱን 3 ጊዜ ስትነካው የአድሚን መግቢያ ይመጣል */
     .main-title {
       color: #3a86ff;
       font-size: 26px;
@@ -73,14 +71,18 @@
       font-size: 15px;
       margin-top: 10px;
       text-decoration: none;
-      display: none;
+      display: none; /* ዕጣ ሲወጣ ብቻ ይታያል */
       box-sizing: border-box;
+      padding: 12px;
+      border-radius: 8px;
+      font-weight: bold;
     }
 
     .btn-spin {
       background-color: var(--success-color);
       color: #fff;
       font-size: 18px;
+      margin-top: 10px;
       margin-bottom: 10px;
     }
 
@@ -88,7 +90,7 @@
       background-color: #3a86ff;
       color: #fff;
       font-size: 14px;
-      padding: 8px;
+      padding: 10px;
       margin-top: 8px;
     }
 
@@ -130,12 +132,12 @@
       width: 100%;
       border-collapse: collapse;
       margin-top: 10px;
-      font-size: 13px;
+      font-size: 12px;
     }
 
     th, td {
       border: 1px solid #415a77;
-      padding: 8px 4px;
+      padding: 6px 2px;
       text-align: center;
     }
 
@@ -152,7 +154,7 @@
       pointer-events: none;
     }
 
-    .input-field {
+    .input-field, .select-field {
       width: 100%;
       padding: 8px;
       margin-top: 5px;
@@ -171,20 +173,28 @@
   <h1 class="main-title" onclick="handleTitleClick()">🏆 K Y Digital Equb 🏆</h1>
   <div class="sub-title">የዕቁብ Live ዕጣ ማውጫ ገፅ</div>
 
-  <!-- የአድሚን መቆጣጠሪያ ፓነል (አድሚን ሆኖ ሲገባ ብቻ ይታያል) -->
+  <!-- የአድሚን መቆጣጠሪያ ፓነል -->
   <div id="admin-controls" class="card" style="display: none; border: 1px solid var(--accent-color);">
-    <p style="color: var(--success-color); margin-top: 0; font-size: 14px;"><b>⚙️ የአድሚን መቆጣጠሪያ ፓነል</b></p>
+    <p style="color: var(--success-color); margin-top: 0; font-size: 15px;"><b>⚙️ የአድሚን መቆጣጠሪያ ፓነል</b></p>
     
     <!-- አባል መመዝገቢያ ፎርም -->
     <div style="margin-bottom: 12px; text-align: left;">
       <label style="font-size: 13px; color: #778da9;">አዲስ አባል ስም አስገባ:</label>
       <input type="text" id="new-member-name" class="input-field" placeholder="የተማሪውን ስም ጻፍ...">
+      
+      <label style="font-size: 13px; color: #778da9; margin-top: 8px; display: block;">ፆታ መርዝ:</label>
+      <select id="new-member-gender" class="select-field">
+        <option value="ወንድ">ወንድ</option>
+        <option value="ሴት">ሴት</option>
+      </select>
+
       <button class="btn btn-add" onclick="addNewMember()">➕ አባል ጨምር</button>
     </div>
 
     <button class="btn btn-spin" onclick="triggerSpin()">🎲 ዕጣ አውጣ (Spin)</button>
     
-    <a id="share-btn" href="https://t.me/ky_digital_equb_channel" target="_blank" class="btn btn-share">
+    <!-- ወደ ቴሌግራም ቻናል ሼር ማድረጊያ -->
+    <a id="share-btn" href="#" target="_blank" class="btn-share">
       📥 ውጤቱን ወደ ቴሌግራም ቻናል ሼር አድርግ
     </a>
   </div>
@@ -201,7 +211,7 @@
     </div>
   </div>
 
-  <!-- የአባላት ሰንጠረዥ -->
+  <!-- የአባላት ሰንጠረዥ (ለሁሉም ይታያል) -->
   <div class="card">
     <h3 style="color: #3a86ff; margin-top: 0;">የአባላት ዝርዝር እና የ 5 ቀናት ክፍያ (50 ብር)</h3>
     <div id="table-wrapper" class="user-readonly">
@@ -209,6 +219,7 @@
         <thead>
           <tr>
             <th>ስም</th>
+            <th>ፆታ</th>
             <th>ቀን 1</th>
             <th>ቀን 2</th>
             <th>ቀን 3</th>
@@ -218,7 +229,7 @@
           </tr>
         </thead>
         <tbody id="members-body">
-          <!-- ባዶ ሰንጠረዥ (በአድሚን ይሞላል) -->
+          <!-- አባላት ይጫናሉ -->
         </tbody>
       </table>
     </div>
@@ -230,7 +241,6 @@
   let clickCount = 0;
   let clickTimer = null;
 
-  // ርዕሱን 3 ጊዜ በመንካት ፓስወርድ መጠየቅ
   function handleTitleClick() {
     clickCount++;
     if (clickCount === 1) {
@@ -250,7 +260,6 @@
     }
   }
 
-  // አባላት (በLocalStorage የሚቀመጡ)
   let members = JSON.parse(localStorage.getItem('ky_members')) || [];
 
   function saveMembers() {
@@ -261,12 +270,15 @@
   function addNewMember() {
     if (!isAdmin) return;
     const nameInput = document.getElementById('new-member-name');
+    const genderInput = document.getElementById('new-member-gender');
     const name = nameInput.value.trim();
+    const gender = genderInput.value;
+
     if (!name) {
       alert("እባክዎን ስም ያስገቡ!");
       return;
     }
-    members.push({ name: name, days: [false, false, false, false, false], paid: false });
+    members.push({ name: name, gender: gender, days: [false, false, false, false, false], paid: false });
     nameInput.value = '';
     saveMembers();
   }
@@ -276,18 +288,18 @@
     tbody.innerHTML = '';
     
     if (members.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7" style="color: #778da9; padding: 15px;">ምንም አባላት የሉም (በአድሚን ይጨመራሉ)</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" style="color: #778da9; padding: 15px;">ምንም አባላት የሉም (በአድሚን ይጨመራሉ)</td></tr>`;
       return;
     }
 
     members.forEach((m, idx) => {
-      // 5ቱም ቀናት ቲክ መደረጋቸውን ማረጋገጥ
       const allDaysChecked = m.days.every(d => d === true);
       m.paid = allDaysChecked;
 
       let tr = document.createElement('tr');
       tr.innerHTML = `
         <td><b>${m.name}</b></td>
+        <td><small>${m.gender || 'ወንድ'}</small></td>
         ${m.days.map((d, dayIdx) => `<td><input type="checkbox" ${d ? 'checked' : ''} onchange="toggleDay(${idx},${dayIdx})"></td>`).join('')}
         <td><span style="color: ${m.paid ? '#2ec4b6' : '#e63946'}">${m.paid ? 'ተከፍሏል' : 'አልተከፈለም'}</span></td>
       `;
@@ -334,7 +346,7 @@
   window.addEventListener('storage', (e) => {
     if (e.key === 'ky_spin_data') {
       const data = JSON.parse(e.newValue);
-      startLiveSpin(data.targetAngle, data.winner);
+      startLiveSpin(data.targetAngle, data.winner, data.gender);
     }
     if (e.key === 'ky_members') {
       members = JSON.parse(e.newValue);
@@ -350,7 +362,6 @@
       return;
     }
 
-    // 5 ቀን ሙሉ ቲክ (ተከፍሏል) የሆኑትን ብቻ ማጣራት
     const eligibleMembers = members.filter(m => m.days.every(d => d === true));
     
     if (eligibleMembers.length === 0) {
@@ -368,13 +379,14 @@
     const spinData = {
       targetAngle: targetAngle,
       winner: winnerObj.name,
+      gender: winnerObj.gender || 'ወንድ',
       time: Date.now()
     };
     localStorage.setItem('ky_spin_data', JSON.stringify(spinData));
-    startLiveSpin(targetAngle, winnerObj.name);
+    startLiveSpin(targetAngle, winnerObj.name, winnerObj.gender || 'ወንድ');
   }
 
-  function startLiveSpin(targetDegrees, winnerName) {
+  function startLiveSpin(targetDegrees, winnerName, winnerGender) {
     document.getElementById('wheel-box').style.display = 'block';
     document.getElementById('status-display').innerHTML = "🎲 ዕጣ በመውጣት ላይ ነው...";
 
@@ -395,8 +407,18 @@
         requestAnimationFrame(step);
       } else {
         document.getElementById('status-display').innerHTML = `🎉 አሸናፊ፦ <b>${winnerName}</b> 🏆`;
+
         if (isAdmin) {
-          document.getElementById('share-btn').style.display = 'block';
+          // እንደ ፆታቸው እንኳን ደስ አለህ / አለሽ የማዘጋጀት አሰራር
+          const congratMsg = (winnerGender === 'ሴት') ? "እንኳን ደስ አለሽ!" : "እንኳን ደስ አለህ!";
+          
+          const shareText = `🎉 *K Y Digital Equb - Live Draw Result* 🎉\n\nየዚህ ዙር ዕጣ አሸናፊ:\n👤 የዚህ ዙር ዕጣ የወጣለት: *${winnerName}*\n💵 የዕቁብ ክፍያ መጠን: 50 ብር\n🏆 አጠቃላይ ድምር: 25,000 ብር\n\n💳 ለዕቁብ አባላት ብቻ የብድር አገልግሎት እንመቻቻለን::\n\n${congratMsg} 🎊 K Y Digital Equb`;
+          
+          const telegramUrl = `https://t.me/share/url?url=&text=${encodeURIComponent(shareText)}`;
+          
+          const shareBtn = document.getElementById('share-btn');
+          shareBtn.href = telegramUrl;
+          shareBtn.style.display = 'block';
         }
       }
     }
