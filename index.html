@@ -11,6 +11,7 @@
       --accent-color: #f5a623;
       --text-color: #e0e1dd;
       --success-color: #2ec4b6;
+      --blue-btn: #1d72b8;
     }
 
     body {
@@ -27,10 +28,13 @@
       margin: 0 auto;
     }
 
-    h1 {
+    /* ርዕሱን 3 ጊዜ ስትነካው የአድሚን መግቢያ ይመጣል */
+    .main-title {
       color: #3a86ff;
-      margin-bottom: 5px;
       font-size: 26px;
+      margin-bottom: 5px;
+      cursor: pointer;
+      user-select: none;
     }
 
     .sub-title {
@@ -46,6 +50,10 @@
       box-shadow: 0 4px 10px rgba(0,0,0,0.3);
     }
 
+    .dashed-card {
+      border: 2px dashed #3a86ff;
+    }
+
     .btn {
       background-color: var(--accent-color);
       color: #000;
@@ -58,11 +66,28 @@
       width: 100%;
     }
 
+    .btn-share {
+      background-color: var(--blue-btn);
+      color: #fff;
+      font-size: 15px;
+      margin-top: 10px;
+      text-decoration: none;
+      display: none; /* አድሚን ዕጣ አውጥቶ ሲጨርስ ብቻ ይታያል */
+      box-sizing: border-box;
+    }
+
     .btn-spin {
       background-color: var(--success-color);
       color: #fff;
       font-size: 18px;
-      margin-top: 15px;
+      margin-bottom: 10px;
+    }
+
+    .status-text {
+      font-size: 20px;
+      font-weight: bold;
+      color: var(--accent-color);
+      margin: 15px 0;
     }
 
     .wheel-container {
@@ -70,6 +95,7 @@
       margin: 15px auto;
       width: 260px;
       height: 260px;
+      display: none; /* Spin ሲደረግ ብቻ ይከፈታል */
     }
 
     canvas {
@@ -116,43 +142,38 @@
     .user-readonly input[type="checkbox"] {
       pointer-events: none;
     }
-
-    .winner-box {
-      font-size: 18px;
-      font-weight: bold;
-      color: var(--accent-color);
-      margin-top: 15px;
-      padding: 10px;
-      border: 1px dashed var(--accent-color);
-      border-radius: 8px;
-    }
   </style>
 </head>
 <body>
 
 <div class="container">
-  <h1>🏆 K Y Digital Equb 🏆</h1>
+  <!-- ርዕሱን 3 ጊዜ በመንካት በአድሚንነት መግባት -->
+  <h1 class="main-title" onclick="handleTitleClick()">🏆 K Y Digital Equb 🏆</h1>
   <div class="sub-title">የዕቁብ Live ዕጣ ማውጫ ገፅ</div>
 
-  <!-- የአድሚን መግቢያ ቁልፍ (በሌሎች ስልክ ፈጽሞ አይታይም - በድብቅ ርዕሱን በመንካት ብቻ አድሚን መግቢያ ይመጣል) -->
-  <div class="card" style="padding: 10px; background-color: transparent; box-shadow: none;">
-    <button class="btn" style="background-color: #f5a623; color: #000;" onclick="secretAdminLogin()">🔑 አድሚን በመሆን ግባ</button>
+  <!-- የአድሚን መቆጣጠሪያ (አድሚን ሆኖ ሲገባ ብቻ ከዚህ በታች ይታያል) -->
+  <div id="admin-controls" class="card" style="display: none; border: 1px solid var(--accent-color);">
+    <p style="color: var(--success-color); margin-top: 0; font-size: 14px;"><b>⚙️ የአድሚን መቆጣጠሪያ ፓነል</b></p>
+    <button class="btn btn-spin" onclick="triggerSpin()">🎲 ዕጣ አውጣ (Spin)</button>
+    
+    <!-- ሼር ማድረጊያ በተን (የሚታየው ለአድሚን ብቻ እና ዕጣ ከወጣ በኋላ ነው) -->
+    <a id="share-btn" href="https://t.me/ky_digital_equb_channel" target="_blank" class="btn btn-share">
+      📥 ውጤቱን ወደ ቴሌግራም ቻናል ሼር አድርግ
+    </a>
   </div>
 
-  <!-- የዕጣ ማውጫ ቦታ -->
-  <div class="card">
+  <!-- የዕጣ ማውጫ ቦታ (ሁሉንም የሚያሳይ Live ዌብሳይት) -->
+  <div class="card dashed-card">
     <h3 style="color: #3a86ff; margin-top: 0;">🏆 የቀን (Live) ዕጣ ማውጣት</h3>
-    <div class="wheel-container">
+
+    <!-- የዕጣ ሁኔታ ጽሁፍ -->
+    <div id="status-display" class="status-text">ዕጣ ለመጀመር ዝግጁ ነው</div>
+
+    <!-- ጎማ (Wheel) -->
+    <div id="wheel-box" class="wheel-container">
       <div class="pointer"></div>
       <canvas id="wheel" width="260" height="260"></canvas>
     </div>
-    
-    <!-- Spin Button (አድሚን ሲገባ ብቻ ይወጣል) -->
-    <div id="admin-spin-area" style="display: none;">
-      <button class="btn btn-spin" onclick="triggerSpin()">🎲 ዕጣ አውጣ (Spin)</button>
-    </div>
-
-    <div id="winner-display" class="winner-box">አሸናፊ አልተመረጠም</div>
   </div>
 
   <!-- የአባላት ሰንጠረዥ -->
@@ -181,28 +202,25 @@
 
 <script>
   let isAdmin = false;
+  let clickCount = 0;
+  let clickTimer = null;
 
-  // ከሌሎች ተጠቃሚዎች ዓይን ለመደብቅ በራስሰር በLocalStorage ወይም በድብቅ ይያዛል
-  // በአንተ ስልክ ላይ ብቻ አድሚን ሆኖ እንዲቆይ የሚደረግበት መንገድ
-  window.onload = function() {
-    // ከዚህ በፊት በአድሚንነት ከገባህ በራስሰር እንዲይዘው ማድረግ ይቻላል
-    if(localStorage.getItem('ky_admin_logged') === 'true') {
-      isAdmin = true;
-      document.getElementById('admin-spin-area').style.display = 'block';
-      document.getElementById('table-wrapper').classList.remove('user-readonly');
-    }
-  };
-
-  function secretAdminLogin() {
-    const pass = prompt("እባክዎን የአድሚን ይለፍ ቃል (Password) ያስገቡ:");
-    if (pass === "182418") {
-      isAdmin = true;
-      localStorage.setItem('ky_admin_logged', 'true');
-      document.getElementById('admin-spin-area').style.display = 'block';
-      document.getElementById('table-wrapper').classList.remove('user-readonly');
-      alert("በአድሚንነት በስኬት ገብተዋል!");
-    } else {
-      alert("የተሳሳተ ይለፍ ቃል!");
+  function handleTitleClick() {
+    clickCount++;
+    if (clickCount === 1) {
+      clickTimer = setTimeout(() => { clickCount = 0; }, 1000);
+    } else if (clickCount === 3) {
+      clearTimeout(clickTimer);
+      clickCount = 0;
+      const pass = prompt("እባክዎን የአድሚን ይለፍ ቃል (Password) ያስገቡ:");
+      if (pass === "182418") {
+        isAdmin = true;
+        document.getElementById('admin-controls').style.display = 'block';
+        document.getElementById('table-wrapper').classList.remove('user-readonly');
+        alert("በአድሚንነት በስኬት ገብተዋል!");
+      } else {
+        alert("የተሳሳተ ይለፍ ቃል!");
+      }
     }
   }
 
@@ -236,13 +254,13 @@
   const colors = ['#f5a623', '#3a86ff', '#2ec4b6', '#e63946', '#9d4edd'];
   let startAngle = 0;
 
-  function drawWheel(angleOffset = 0) {
+  function drawWheel() {
     const numOptions = members.length;
     const arcSize = (2 * Math.PI) / numOptions;
     ctx.clearRect(0, 0, 260, 260);
 
     members.forEach((m, i) => {
-      const angle = startAngle + angleOffset + i * arcSize;
+      const angle = startAngle + i * arcSize;
       ctx.beginPath();
       ctx.fillStyle = colors[i % colors.length];
       ctx.moveTo(130, 130);
@@ -263,7 +281,7 @@
   window.addEventListener('storage', (e) => {
     if (e.key === 'ky_spin_data') {
       const data = JSON.parse(e.newValue);
-      animateSpinTo(data.targetAngle, data.winner);
+      startLiveSpin(data.targetAngle, data.winner);
     }
   });
 
@@ -279,10 +297,13 @@
       time: Date.now()
     };
     localStorage.setItem('ky_spin_data', JSON.stringify(spinData));
-    animateSpinTo(targetAngle, members[randomWinnerIndex].name);
+    startLiveSpin(targetAngle, members[randomWinnerIndex].name);
   }
 
-  function animateSpinTo(targetDegrees, winnerName) {
+  function startLiveSpin(targetDegrees, winnerName) {
+    document.getElementById('wheel-box').style.display = 'block';
+    document.getElementById('status-display').innerHTML = "🎲 ዕጣ በመውጣት ላይ ነው...";
+
     let currentDeg = 0;
     let spinDuration = 4000;
     let startTime = null;
@@ -299,7 +320,11 @@
       if (progress < spinDuration) {
         requestAnimationFrame(step);
       } else {
-        document.getElementById('winner-display').innerHTML = `🎉 አሸናፊ፦ <b>${winnerName}</b> 🎉`;
+        document.getElementById('status-display').innerHTML = `🎉 አሸናፊ፦ <b>${winnerName}</b> 🏆`;
+        // ዕጣው ሲያልቅ ለአድሚኑ ፓነል ውስጥ የሼር በተን ይመጣል
+        if (isAdmin) {
+          document.getElementById('share-btn').style.display = 'block';
+        }
       }
     }
     requestAnimationFrame(step);
