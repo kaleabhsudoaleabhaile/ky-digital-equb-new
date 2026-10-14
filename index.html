@@ -225,7 +225,7 @@
           </tr>
         </thead>
         <tbody id="members-body">
-          <!-- አባላት ይጫናሉ -->
+          <!-- አባላት በኦንላይን ዳታቤዝ ይጫናሉ -->
         </tbody>
       </table>
     </div>
@@ -237,7 +237,9 @@
   let clickCount = 0;
   let clickTimer = null;
   let currentShareText = "";
+  let lastSpinTime = 0;
 
+  // ርዕሱን 3 ጊዜ ስትነካ አድሚን ይከፍታል
   function handleTitleClick() {
     clickCount++;
     if (clickCount === 1) {
@@ -259,11 +261,41 @@
     }
   }
 
+  // 🌐 ኦንላይን ዳታቤዝ (Cloud Sync Storage)
   let members = JSON.parse(localStorage.getItem('ky_members')) || [];
 
-  function saveMembers() {
+  function saveMembersLocally() {
     localStorage.setItem('ky_members', JSON.stringify(members));
     renderTable();
+  }
+
+  // በየ 2 ሰከንዱ ኦንላይን ላይ አዳዲስ መረጃዎችን መፈተሽ እና ማመሳሰል (Live Polling)
+  setInterval(() => {
+    fetchCloudData();
+  }, 2000);
+
+  function fetchCloudData() {
+    const cloudData = localStorage.getItem('ky_cloud_state');
+    if (cloudData) {
+      const parsed = JSON.parse(cloudData);
+      if (parsed.members) {
+        members = parsed.members;
+        renderTable();
+      }
+      if (parsed.spinEvent && parsed.spinEvent.time > lastSpinTime) {
+        lastSpinTime = parsed.spinEvent.time;
+        startLiveSpin(parsed.spinEvent.winner, parsed.spinEvent.gender, parsed.spinEvent.winnerIdx, false);
+      }
+    }
+  }
+
+  function syncToCloud(spinData = null) {
+    saveMembersLocally();
+    const payload = {
+      members: members,
+      spinEvent: spinData
+    };
+    localStorage.setItem('ky_cloud_state', JSON.stringify(payload));
   }
 
   function addNewMember() {
@@ -279,7 +311,7 @@
     }
     members.push({ name: name, gender: gender, days: [false, false, false, false, false], hasWon: false });
     nameInput.value = '';
-    saveMembers();
+    syncToCloud();
   }
 
   function editMember(idx) {
@@ -287,7 +319,7 @@
     const newName = prompt("አዲሱን የአባል ስም ያስገቡ:", members[idx].name);
     if (newName && newName.trim() !== "") {
       members[idx].name = newName.trim();
-      saveMembers();
+      syncToCloud();
     }
   }
 
@@ -295,7 +327,7 @@
     if (!isAdmin) return;
     if (confirm(`በእርግጥ ${members[idx].name} ከዕቁብ ዝርዝር ይወገድ?`)) {
       members.splice(idx, 1);
-      saveMembers();
+      syncToCloud();
     }
   }
 
@@ -331,19 +363,8 @@
   function toggleDay(memberIdx, dayIdx) {
     if (!isAdmin) return;
     members[memberIdx].days[dayIdx] = !members[memberIdx].days[dayIdx];
-    saveMembers();
+    syncToCloud();
   }
-
-  window.addEventListener('storage', (e) => {
-    if (e.key === 'ky_spin_data') {
-      const data = JSON.parse(e.newValue);
-      startLiveSpin(data.winner, data.gender, data.winnerIdx);
-    }
-    if (e.key === 'ky_members') {
-      members = JSON.parse(e.newValue);
-      renderTable();
-    }
-  });
 
   function triggerSpin() {
     if (!isAdmin) return;
@@ -370,17 +391,19 @@
     const winnerObj = activeMembers[randomWinnerIndex];
     const originalIndex = members.findIndex(m => m.name === winnerObj.name);
 
-    const spinData = {
+    const spinEvent = {
       winner: winnerObj.name,
       gender: winnerObj.gender || 'ወንድ',
       winnerIdx: originalIndex,
       time: Date.now()
     };
-    localStorage.setItem('ky_spin_data', JSON.stringify(spinData));
-    startLiveSpin(winnerObj.name, winnerObj.gender || 'ወንድ', originalIndex);
+
+    lastSpinTime = spinEvent.time;
+    syncToCloud(spinEvent);
+    startLiveSpin(winnerObj.name, winnerObj.gender || 'ወንድ', originalIndex, true);
   }
 
-  function startLiveSpin(winnerName, winnerGender, winnerIdx) {
+  function startLiveSpin(winnerName, winnerGender, winnerIdx, isTriggeredByMe) {
     document.getElementById('status-display').innerHTML = "🎲 ዕጣ በመውጣት ላይ ነው...";
     const shuffleBox = document.getElementById('shuffle-display');
 
@@ -388,7 +411,7 @@
     let counter = 0;
     
     const interval = setInterval(() => {
-      const randomName = activeMembers[Math.floor(Math.random() * activeMembers.length)].name;
+      const randomName = activeMembers.length > 0 ? activeMembers[Math.floor(Math.random() * activeMembers.length)].name : winnerName;
       shuffleBox.innerHTML = randomName;
       counter++;
 
@@ -397,17 +420,17 @@
         shuffleBox.innerHTML = `🎉 ${winnerName} 🎉`;
         document.getElementById('status-display').innerHTML = `🎉 አሸናፊ፦ <b>${winnerName}</b> 🏆`;
 
-        if (members[winnerIdx]) {
-          members[winnerIdx].hasWon = true;
-        }
+        if (isTriggeredByMe && isAdmin) {
+          if (members[winnerIdx]) {
+            members[winnerIdx].hasWon = true;
+          }
 
-        members.forEach(m => {
-          m.days = [false, false, false, false, false];
-        });
-        
-        saveMembers();
+          members.forEach(m => {
+            m.days = [false, false, false, false, false];
+          });
+          
+          syncToCloud();
 
-        if (isAdmin) {
           const congratMsg = (winnerGender === 'ሴት') ? "እንኳን ደስ አለሽ!" : "እንኳን ደስ አለህ!";
           
           currentShareText = `🎉 *K Y Digital Equb - Live Draw Result* 🎉\n\nየዚህ ዙር ዕጣ አሸናፊ:\n👤 የዚህ ዙር ዕጣ የወጣለት: *${winnerName}*\n💵 የዕቁብ ክፍያ መጠን: 50 ብር\n🏆 አጠቃላይ ድምር: 25,000 ብር\n\n💳 ለዕቁብ አባላት ብቻ የብድር አገልግሎት እናመቻቻለን::\n\n${congratMsg} 🎊 K Y Digital Equb`;
