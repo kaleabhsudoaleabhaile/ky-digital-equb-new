@@ -12,6 +12,7 @@
       --text-color: #e0e1dd;
       --success-color: #2ec4b6;
       --blue-btn: #1d72b8;
+      --danger-color: #e63946;
     }
 
     body {
@@ -24,7 +25,7 @@
     }
 
     .container {
-      max-width: 500px;
+      max-width: 550px;
       margin: 0 auto;
     }
 
@@ -71,7 +72,7 @@
       font-size: 15px;
       margin-top: 10px;
       text-decoration: none;
-      display: none; /* ዕጣ ሲወጣ ብቻ ይታያል */
+      display: none;
       box-sizing: border-box;
       padding: 12px;
       border-radius: 8px;
@@ -94,6 +95,17 @@
       margin-top: 8px;
     }
 
+    .btn-action {
+      border: none;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      margin: 2px;
+    }
+    .btn-edit { background-color: #f5a623; color: #000; }
+    .btn-delete { background-color: #e63946; color: #fff; }
+
     .status-text {
       font-size: 18px;
       font-weight: bold;
@@ -101,11 +113,12 @@
       margin: 15px 0;
     }
 
+    /* Ludo Master Style Wheel Container */
     .wheel-container {
       position: relative;
       margin: 15px auto;
-      width: 260px;
-      height: 260px;
+      width: 280px;
+      height: 280px;
       display: none;
     }
 
@@ -113,19 +126,21 @@
       width: 100%;
       height: 100%;
       border-radius: 50%;
+      box-shadow: 0 0 15px rgba(245, 166, 35, 0.4);
     }
 
     .pointer {
       position: absolute;
-      top: -10px;
+      top: -12px;
       left: 50%;
       transform: translateX(-50%);
       width: 0;
       height: 0;
-      border-left: 15px solid transparent;
-      border-right: 15px solid transparent;
-      border-top: 25px solid var(--accent-color);
+      border-left: 16px solid transparent;
+      border-right: 16px solid transparent;
+      border-top: 28px solid #ff4757;
       z-index: 10;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
     }
 
     table {
@@ -169,7 +184,6 @@
 <body>
 
 <div class="container">
-  <!-- ርዕሱን 3 ጊዜ በመንካት በአድሚንነት መግባት -->
   <h1 class="main-title" onclick="handleTitleClick()">🏆 K Y Digital Equb 🏆</h1>
   <div class="sub-title">የዕቁብ Live ዕጣ ማውጫ ገፅ</div>
 
@@ -177,7 +191,6 @@
   <div id="admin-controls" class="card" style="display: none; border: 1px solid var(--accent-color);">
     <p style="color: var(--success-color); margin-top: 0; font-size: 15px;"><b>⚙️ የአድሚን መቆጣጠሪያ ፓነል</b></p>
     
-    <!-- አባል መመዝገቢያ ፎርም -->
     <div style="margin-bottom: 12px; text-align: left;">
       <label style="font-size: 13px; color: #778da9;">አዲስ አባል ስም አስገባ:</label>
       <input type="text" id="new-member-name" class="input-field" placeholder="የተማሪውን ስም ጻፍ...">
@@ -193,8 +206,7 @@
 
     <button class="btn btn-spin" onclick="triggerSpin()">🎲 ዕጣ አውጣ (Spin)</button>
     
-    <!-- ወደ ቴሌግራም ቻናል ሼር ማድረጊያ -->
-    <a id="share-btn" href="#" target="_blank" class="btn-share">
+    <a id="share-btn" href="#" class="btn-share">
       📥 ውጤቱን ወደ ቴሌግራም ቻናል ሼር አድርግ
     </a>
   </div>
@@ -207,11 +219,11 @@
 
     <div id="wheel-box" class="wheel-container">
       <div class="pointer"></div>
-      <canvas id="wheel" width="260" height="260"></canvas>
+      <canvas id="wheel" width="280" height="280"></canvas>
     </div>
   </div>
 
-  <!-- የአባላት ሰንጠረዥ (ለሁሉም ይታያል) -->
+  <!-- የአባላት ሰንጠረዥ -->
   <div class="card">
     <h3 style="color: #3a86ff; margin-top: 0;">የአባላት ዝርዝር እና የ 5 ቀናት ክፍያ (50 ብር)</h3>
     <div id="table-wrapper" class="user-readonly">
@@ -226,6 +238,7 @@
             <th>ቀን 4</th>
             <th>ቀን 5</th>
             <th>ሁኔታ</th>
+            <th id="action-header" style="display: none;">እርምጃ</th>
           </tr>
         </thead>
         <tbody id="members-body">
@@ -252,7 +265,9 @@
       if (pass === "182418") {
         isAdmin = true;
         document.getElementById('admin-controls').style.display = 'block';
+        document.getElementById('action-header').style.display = 'table-cell';
         document.getElementById('table-wrapper').classList.remove('user-readonly');
+        renderTable();
         alert("በአድሚንነት በስኬት ገብተዋል!");
       } else {
         alert("የተሳሳተ ይለፍ ቃል!");
@@ -265,6 +280,7 @@
   function saveMembers() {
     localStorage.setItem('ky_members', JSON.stringify(members));
     renderTable();
+    drawWheel();
   }
 
   function addNewMember() {
@@ -283,12 +299,29 @@
     saveMembers();
   }
 
+  function editMember(idx) {
+    if (!isAdmin) return;
+    const newName = prompt("አዲሱን የአባል ስም ያስገቡ:", members[idx].name);
+    if (newName && newName.trim() !== "") {
+      members[idx].name = newName.trim();
+      saveMembers();
+    }
+  }
+
+  function deleteMember(idx) {
+    if (!isAdmin) return;
+    if (confirm(`በእርግጥ ${members[idx].name} ከዕቁብ ዝርዝር ይወገድ?`)) {
+      members.splice(idx, 1);
+      saveMembers();
+    }
+  }
+
   function renderTable() {
     const tbody = document.getElementById('members-body');
     tbody.innerHTML = '';
     
     if (members.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="8" style="color: #778da9; padding: 15px;">ምንም አባላት የሉም (በአድሚን ይጨመራሉ)</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="9" style="color: #778da9; padding: 15px;">ምንም አባላት የሉም (በአድሚን ይጨመራሉ)</td></tr>`;
       return;
     }
 
@@ -302,6 +335,10 @@
         <td><small>${m.gender || 'ወንድ'}</small></td>
         ${m.days.map((d, dayIdx) => `<td><input type="checkbox" ${d ? 'checked' : ''} onchange="toggleDay(${idx},${dayIdx})"></td>`).join('')}
         <td><span style="color: ${m.paid ? '#2ec4b6' : '#e63946'}">${m.paid ? 'ተከፍሏል' : 'አልተከፈለም'}</span></td>
+        ${isAdmin ? `<td>
+          <button class="btn-action btn-edit" onclick="editMember(${idx})">✏️</button>
+          <button class="btn-action btn-delete" onclick="deleteMember(${idx})">🗑️</button>
+        </td>` : ''}
       `;
       tbody.appendChild(tr);
     });
@@ -315,29 +352,35 @@
 
   const canvas = document.getElementById('wheel');
   const ctx = canvas.getContext('2d');
-  const colors = ['#f5a623', '#3a86ff', '#2ec4b6', '#e63946', '#9d4edd'];
+  const colors = ['#f5a623', '#3a86ff', '#2ec4b6', '#e63946', '#9d4edd', '#ff70a6', '#ff9f1c', '#70e000'];
   let startAngle = 0;
 
   function drawWheel() {
     if (members.length === 0) return;
     const numOptions = members.length;
     const arcSize = (2 * Math.PI) / numOptions;
-    ctx.clearRect(0, 0, 260, 260);
+    ctx.clearRect(0, 0, 280, 280);
 
     members.forEach((m, i) => {
       const angle = startAngle + i * arcSize;
       ctx.beginPath();
       ctx.fillStyle = colors[i % colors.length];
-      ctx.moveTo(130, 130);
-      ctx.arc(130, 130, 120, angle, angle + arcSize);
-      ctx.lineTo(130, 130);
+      ctx.moveTo(140, 140);
+      ctx.arc(140, 140, 130, angle, angle + arcSize);
+      ctx.lineTo(140, 140);
       ctx.fill();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = '#0d1b2a';
+      ctx.stroke();
 
       ctx.save();
       ctx.fillStyle = '#ffffff';
-      ctx.translate(130 + Math.cos(angle + arcSize / 2) * 75, 130 + Math.sin(angle + arcSize / 2) * 75);
+      ctx.translate(140 + Math.cos(angle + arcSize / 2) * 85, 140 + Math.sin(angle + arcSize / 2) * 85);
       ctx.rotate(angle + arcSize / 2 + Math.PI / 2);
-      ctx.font = 'bold 13px sans-serif';
+      
+      // እስከ 100 አባል ቢኖር እንኳ ስሞች በግልጽ እንዲታዩ የጽሁፍ መጠኑን ማስተካከል
+      let fontSize = numOptions > 30 ? '9px' : (numOptions > 15 ? '11px' : '13px');
+      ctx.font = `bold ${fontSize} sans-serif`;
       ctx.fillText(m.name, -ctx.measureText(m.name).width / 2, 0);
       ctx.restore();
     });
@@ -374,7 +417,8 @@
     const originalIndex = members.findIndex(m => m.name === winnerObj.name);
 
     const arcSize = 360 / members.length;
-    const targetAngle = 360 * 5 + (360 - (originalIndex * arcSize + arcSize / 2));
+    // Ludo Master style: 10 ጊዜ ሙሉ በሙሉ ተሽከረክሮ እንዲያቆም
+    const targetAngle = 360 * 10 + (360 - (originalIndex * arcSize + arcSize / 2));
     
     const spinData = {
       targetAngle: targetAngle,
@@ -391,13 +435,13 @@
     document.getElementById('status-display').innerHTML = "🎲 ዕጣ በመውጣት ላይ ነው...";
 
     let currentDeg = 0;
-    let spinDuration = 4000;
+    let spinDuration = 6000; // 6 ሰከንድ ረዘም ብሎ Ludo Master በሚመስል ፊዚክስ ይሽከረከራል
     let startTime = null;
 
     function step(timestamp) {
       if (!startTime) startTime = timestamp;
       let progress = timestamp - startTime;
-      let ease = 1 - Math.pow(1 - Math.min(progress / spinDuration, 1), 3);
+      let ease = 1 - Math.pow(1 - Math.min(progress / spinDuration, 1), 4);
       currentDeg = targetDegrees * ease;
       
       startAngle = (currentDeg * Math.PI) / 180;
@@ -409,11 +453,11 @@
         document.getElementById('status-display').innerHTML = `🎉 አሸናፊ፦ <b>${winnerName}</b> 🏆`;
 
         if (isAdmin) {
-          // እንደ ፆታቸው እንኳን ደስ አለህ / አለሽ የማዘጋጀት አሰራር
           const congratMsg = (winnerGender === 'ሴት') ? "እንኳን ደስ አለሽ!" : "እንኳን ደስ አለህ!";
           
           const shareText = `🎉 *K Y Digital Equb - Live Draw Result* 🎉\n\nየዚህ ዙር ዕጣ አሸናፊ:\n👤 የዚህ ዙር ዕጣ የወጣለት: *${winnerName}*\n💵 የዕቁብ ክፍያ መጠን: 50 ብር\n🏆 አጠቃላይ ድምር: 25,000 ብር\n\n💳 ለዕቁብ አባላት ብቻ የብድር አገልግሎት እንመቻቻለን::\n\n${congratMsg} 🎊 K Y Digital Equb`;
           
+          // Telegram App Direct Share Protocol
           const telegramUrl = `https://t.me/share/url?url=&text=${encodeURIComponent(shareText)}`;
           
           const shareBtn = document.getElementById('share-btn');
