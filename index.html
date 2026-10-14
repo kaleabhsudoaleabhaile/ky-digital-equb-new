@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>K Y Digital Equb - Live ዕጣ ማውጫ</title>
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
     :root {
       --bg-color: #0d1b2a;
@@ -12,7 +11,7 @@
       --accent-color: #f5a623;
       --text-color: #e0e1dd;
       --success-color: #2ec4b6;
-      --button-bg: #0077b6;
+      --button-bg: #3a86ff;
     }
 
     body {
@@ -48,12 +47,6 @@
       box-shadow: 0 4px 10px rgba(0,0,0,0.3);
     }
 
-    /* Admin Section */
-    #admin-section {
-      display: none; /* አድሚን ካልሆነ ይደበቃል */
-      border: 2px solid var(--accent-color);
-    }
-
     .btn {
       background-color: var(--accent-color);
       color: #000;
@@ -64,21 +57,20 @@
       border-radius: 8px;
       cursor: pointer;
       width: 100%;
-      margin-top: 10px;
     }
 
     .btn-spin {
       background-color: var(--success-color);
       color: #fff;
       font-size: 18px;
+      margin-top: 15px;
     }
 
-    /* Wheel Canvas */
     .wheel-container {
       position: relative;
-      margin: 20px auto;
-      width: 280px;
-      height: 280px;
+      margin: 15px auto;
+      width: 260px;
+      height: 260px;
     }
 
     canvas {
@@ -100,12 +92,11 @@
       z-index: 10;
     }
 
-    /* Table Styles */
     table {
       width: 100%;
       border-collapse: collapse;
       margin-top: 10px;
-      font-size: 14px;
+      font-size: 13px;
     }
 
     th, td {
@@ -123,17 +114,16 @@
       transform: scale(1.2);
     }
 
-    /* Readonly for users */
+    /* ተጠቃሚዎች ቲክ እንዳያደርጉ ይከለክላል */
     .user-readonly input[type="checkbox"] {
-      pointer-events: none; /* ተጠቃሚዎች ቲክ እንዳያደርጉ ይከለክላል */
-      opacity: 0.8;
+      pointer-events: none;
     }
 
     .winner-box {
-      font-size: 20px;
+      font-size: 18px;
       font-weight: bold;
       color: var(--accent-color);
-      margin-top: 10px;
+      margin-top: 15px;
       padding: 10px;
       border: 1px dashed var(--accent-color);
       border-radius: 8px;
@@ -146,23 +136,24 @@
   <h1>🏆 K Y Digital Equb 🏆</h1>
   <div class="sub-title">የዕቁብ Live ዕጣ ማውጫ ገፅ</div>
 
-  <!-- አድሚን ብቻ የሚያየው ክፍል -->
-  <div id="admin-login-card" class="card" style="display: none;">
-    <button class="btn" onclick="toggleAdminAuth()">🔑 አድሚን በመሆን ግባ</button>
+  <!-- የአድሚን መግቢያ ቁልፍ (ሁልጊዜ ከላይ ይታያል) -->
+  <div id="admin-login-card" class="card">
+    <button id="login-btn" class="btn" onclick="toggleAdminAuth()">🔑 አድሚን በመሆን ግባ</button>
   </div>
 
-  <div id="admin-panel" class="card" style="display: none;">
-    <h3 style="color: var(--accent-color); margin: 0 0 10px 0;">⚙️ የአድሚን መቆጣጠሪያ</h3>
-    <button class="btn btn-spin" onclick="spinWheel()">🎲 ዕጣ አውጣ (Spin)</button>
-  </div>
-
-  <!-- የዕጣ ማውጫ ቦታ (ሁሉም የሚያየው) -->
+  <!-- የዕጣ ማውጫ ቦታ -->
   <div class="card">
     <h3 style="color: #3a86ff; margin-top: 0;">🏆 የቀን (Live) ዕጣ ማውጣት</h3>
     <div class="wheel-container">
       <div class="pointer"></div>
-      <canvas id="wheel" width="280" height="280"></canvas>
+      <canvas id="wheel" width="260" height="260"></canvas>
     </div>
+    
+    <!-- Spin Button (አድሚን ሲገባ ብቻ ይወጣል) -->
+    <div id="admin-spin-area" style="display: none;">
+      <button class="btn btn-spin" onclick="spinWheel()">🎲 ዕጣ አውጣ (Spin)</button>
+    </div>
+
     <div id="winner-display" class="winner-box">አሸናፊ አልተመረጠም</div>
   </div>
 
@@ -183,7 +174,7 @@
           </tr>
         </thead>
         <tbody id="members-body">
-          <!-- የአባላት ዝርዝር በ JS ይጫናል -->
+          <!-- የአባላት ዝርዝር -->
         </tbody>
       </table>
     </div>
@@ -191,37 +182,30 @@
 </div>
 
 <script>
-  // የአድሚን ID
-  const ADMIN_ID = "8833060672"; 
   let isAdmin = false;
 
-  // የቴሌግራም WebApp መረጃ ማረጋገጥ
-  const tg = window.Telegram ? window.Telegram.WebApp : null;
-  if (tg) {
-    tg.expand();
-    const currentUser = tg.initDataUnsafe ? tg.initDataUnsafe.user : null;
-    if (currentUser && String(currentUser.id) === ADMIN_ID) {
-      document.getElementById('admin-login-card').style.display = 'block';
-    }
-  } else {
-    // ለቴሌግራም ውጭ ሙከራ
-    document.getElementById('admin-login-card').style.display = 'block';
-  }
-
   function toggleAdminAuth() {
-    const pass = prompt("እባክዎን የአድሚን ይለፍ ቃል (Password) ያስገቡ:");
-    if (pass === "1234" || pass === "admin") { // የራስህን ፓስወርድ እዚህ መቀየር ትችላለህ
-      isAdmin = true;
-      document.getElementById('admin-panel').style.display = 'block';
-      document.getElementById('admin-login-card').style.display = 'none';
-      document.getElementById('table-wrapper').classList.remove('user-readonly');
-      alert("በአድሚንነት ገብተዋል!");
+    if (!isAdmin) {
+      const pass = prompt("እባክዎን የአድሚን ይለፍ ቃል (Password) ያስገቡ:");
+      if (pass === "182418") { // አዲሱ የይለፍ ቃል
+        isAdmin = true;
+        document.getElementById('admin-spin-area').style.display = 'block';
+        document.getElementById('table-wrapper').classList.remove('user-readonly');
+        document.getElementById('login-btn').innerHTML = "✅ በአድሚንነት ገብተዋል (ወጣ)";
+        document.getElementById('login-btn').style.backgroundColor = "#2ec4b6";
+        alert("በአድሚንነት በስኬት ገብተዋል!");
+      } else {
+        alert("የተሳሳተ ይለፍ ቃል!");
+      }
     } else {
-      alert("የተሳሳተ ይለፍ ቃል!");
+      isAdmin = false;
+      document.getElementById('admin-spin-area').style.display = 'none';
+      document.getElementById('table-wrapper').classList.add('user-readonly');
+      document.getElementById('login-btn').innerHTML = "🔑 አድሚን በመሆን ግባ";
+      document.getElementById('login-btn').style.backgroundColor = "#f5a623";
     }
   }
 
-  // የአባላት ናሙና መረጃ
   const members = [
     { name: "ቃልአብ", days: [true, true, true, false, false], paid: true },
     { name: "ተማሪ 2", days: [true, true, false, false, false], paid: true },
@@ -247,7 +231,6 @@
     members[memberIdx].days[dayIdx] = !members[memberIdx].days[dayIdx];
   }
 
-  // የጎማ (Spin Wheel) አሰራር
   const canvas = document.getElementById('wheel');
   const ctx = canvas.getContext('2d');
   const colors = ['#f5a623', '#3a86ff', '#2ec4b6', '#e63946', '#9d4edd'];
@@ -256,23 +239,22 @@
   function drawWheel() {
     const numOptions = members.length;
     const arcSize = (2 * Math.PI) / numOptions;
-    ctx.clearRect(0, 0, 280, 280);
+    ctx.clearRect(0, 0, 260, 260);
 
     members.forEach((m, i) => {
       const angle = startAngle + i * arcSize;
       ctx.beginPath();
       ctx.fillStyle = colors[i % colors.length];
-      ctx.moveTo(140, 140);
-      ctx.arc(140, 140, 130, angle, angle + arcSize);
-      ctx.lineTo(140, 140);
+      ctx.moveTo(130, 130);
+      ctx.arc(130, 130, 120, angle, angle + arcSize);
+      ctx.lineTo(130, 130);
       ctx.fill();
 
-      // Text
       ctx.save();
       ctx.fillStyle = '#ffffff';
-      ctx.translate(140 + Math.cos(angle + arcSize / 2) * 80, 140 + Math.sin(angle + arcSize / 2) * 80);
+      ctx.translate(130 + Math.cos(angle + arcSize / 2) * 75, 130 + Math.sin(angle + arcSize / 2) * 75);
       ctx.rotate(angle + arcSize / 2 + Math.PI / 2);
-      ctx.font = 'bold 14px sans-serif';
+      ctx.font = 'bold 13px sans-serif';
       ctx.fillText(m.name, -ctx.measureText(m.name).width / 2, 0);
       ctx.restore();
     });
