@@ -12,6 +12,7 @@
       --text-color: #e0e1dd;
       --success-color: #2ec4b6;
       --blue-btn: #1d72b8;
+      --danger-color: #e63946;
     }
 
     body {
@@ -72,7 +73,7 @@
       font-size: 15px;
       margin-top: 10px;
       text-decoration: none;
-      display: none; /* አድሚን ዕጣ አውጥቶ ሲጨርስ ብቻ ይታያል */
+      display: none;
       box-sizing: border-box;
     }
 
@@ -83,8 +84,16 @@
       margin-bottom: 10px;
     }
 
+    .btn-add {
+      background-color: #3a86ff;
+      color: #fff;
+      font-size: 14px;
+      padding: 8px;
+      margin-top: 8px;
+    }
+
     .status-text {
-      font-size: 20px;
+      font-size: 18px;
       font-weight: bold;
       color: var(--accent-color);
       margin: 15px 0;
@@ -95,7 +104,7 @@
       margin: 15px auto;
       width: 260px;
       height: 260px;
-      display: none; /* Spin ሲደረግ ብቻ ይከፈታል */
+      display: none;
     }
 
     canvas {
@@ -142,6 +151,17 @@
     .user-readonly input[type="checkbox"] {
       pointer-events: none;
     }
+
+    .input-field {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+      box-sizing: border-box;
+      border-radius: 6px;
+      border: 1px solid #415a77;
+      background-color: #0d1b2a;
+      color: #fff;
+    }
   </style>
 </head>
 <body>
@@ -151,25 +171,30 @@
   <h1 class="main-title" onclick="handleTitleClick()">🏆 K Y Digital Equb 🏆</h1>
   <div class="sub-title">የዕቁብ Live ዕጣ ማውጫ ገፅ</div>
 
-  <!-- የአድሚን መቆጣጠሪያ (አድሚን ሆኖ ሲገባ ብቻ ከዚህ በታች ይታያል) -->
+  <!-- የአድሚን መቆጣጠሪያ ፓነል (አድሚን ሆኖ ሲገባ ብቻ ይታያል) -->
   <div id="admin-controls" class="card" style="display: none; border: 1px solid var(--accent-color);">
     <p style="color: var(--success-color); margin-top: 0; font-size: 14px;"><b>⚙️ የአድሚን መቆጣጠሪያ ፓነል</b></p>
+    
+    <!-- አባል መመዝገቢያ ፎርም -->
+    <div style="margin-bottom: 12px; text-align: left;">
+      <label style="font-size: 13px; color: #778da9;">አዲስ አባል ስም አስገባ:</label>
+      <input type="text" id="new-member-name" class="input-field" placeholder="የተማሪውን ስም ጻፍ...">
+      <button class="btn btn-add" onclick="addNewMember()">➕ አባል ጨምር</button>
+    </div>
+
     <button class="btn btn-spin" onclick="triggerSpin()">🎲 ዕጣ አውጣ (Spin)</button>
     
-    <!-- ሼር ማድረጊያ በተን (የሚታየው ለአድሚን ብቻ እና ዕጣ ከወጣ በኋላ ነው) -->
     <a id="share-btn" href="https://t.me/ky_digital_equb_channel" target="_blank" class="btn btn-share">
       📥 ውጤቱን ወደ ቴሌግራም ቻናል ሼር አድርግ
     </a>
   </div>
 
-  <!-- የዕጣ ማውጫ ቦታ (ሁሉንም የሚያሳይ Live ዌብሳይት) -->
+  <!-- የዕጣ ማውጫ ቦታ -->
   <div class="card dashed-card">
     <h3 style="color: #3a86ff; margin-top: 0;">🏆 የቀን (Live) ዕጣ ማውጣት</h3>
 
-    <!-- የዕጣ ሁኔታ ጽሁፍ -->
     <div id="status-display" class="status-text">ዕጣ ለመጀመር ዝግጁ ነው</div>
 
-    <!-- ጎማ (Wheel) -->
     <div id="wheel-box" class="wheel-container">
       <div class="pointer"></div>
       <canvas id="wheel" width="260" height="260"></canvas>
@@ -193,7 +218,7 @@
           </tr>
         </thead>
         <tbody id="members-body">
-          <!-- የአባላት ዝርዝር -->
+          <!-- ባዶ ሰንጠረዥ (በአድሚን ይሞላል) -->
         </tbody>
       </table>
     </div>
@@ -205,6 +230,7 @@
   let clickCount = 0;
   let clickTimer = null;
 
+  // ርዕሱን 3 ጊዜ በመንካት ፓስወርድ መጠየቅ
   function handleTitleClick() {
     clickCount++;
     if (clickCount === 1) {
@@ -224,16 +250,41 @@
     }
   }
 
-  const members = [
-    { name: "ቃልአብ", days: [true, true, true, false, false], paid: true },
-    { name: "ተማሪ 2", days: [true, true, false, false, false], paid: true },
-    { name: "ተማሪ 3", days: [true, true, true, true, false], paid: true }
-  ];
+  // አባላት (በLocalStorage የሚቀመጡ)
+  let members = JSON.parse(localStorage.getItem('ky_members')) || [];
+
+  function saveMembers() {
+    localStorage.setItem('ky_members', JSON.stringify(members));
+    renderTable();
+  }
+
+  function addNewMember() {
+    if (!isAdmin) return;
+    const nameInput = document.getElementById('new-member-name');
+    const name = nameInput.value.trim();
+    if (!name) {
+      alert("እባክዎን ስም ያስገቡ!");
+      return;
+    }
+    members.push({ name: name, days: [false, false, false, false, false], paid: false });
+    nameInput.value = '';
+    saveMembers();
+  }
 
   function renderTable() {
     const tbody = document.getElementById('members-body');
     tbody.innerHTML = '';
+    
+    if (members.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" style="color: #778da9; padding: 15px;">ምንም አባላት የሉም (በአድሚን ይጨመራሉ)</td></tr>`;
+      return;
+    }
+
     members.forEach((m, idx) => {
+      // 5ቱም ቀናት ቲክ መደረጋቸውን ማረጋገጥ
+      const allDaysChecked = m.days.every(d => d === true);
+      m.paid = allDaysChecked;
+
       let tr = document.createElement('tr');
       tr.innerHTML = `
         <td><b>${m.name}</b></td>
@@ -247,6 +298,7 @@
   function toggleDay(memberIdx, dayIdx) {
     if (!isAdmin) return;
     members[memberIdx].days[dayIdx] = !members[memberIdx].days[dayIdx];
+    saveMembers();
   }
 
   const canvas = document.getElementById('wheel');
@@ -255,6 +307,7 @@
   let startAngle = 0;
 
   function drawWheel() {
+    if (members.length === 0) return;
     const numOptions = members.length;
     const arcSize = (2 * Math.PI) / numOptions;
     ctx.clearRect(0, 0, 260, 260);
@@ -283,21 +336,42 @@
       const data = JSON.parse(e.newValue);
       startLiveSpin(data.targetAngle, data.winner);
     }
+    if (e.key === 'ky_members') {
+      members = JSON.parse(e.newValue);
+      renderTable();
+      drawWheel();
+    }
   });
 
   function triggerSpin() {
     if (!isAdmin) return;
-    const randomWinnerIndex = Math.floor(Math.random() * members.length);
+    if (members.length === 0) {
+      alert("እባክዎን መጀመሪያ አባሎችን ያስገቡ!");
+      return;
+    }
+
+    // 5 ቀን ሙሉ ቲክ (ተከፍሏል) የሆኑትን ብቻ ማጣራት
+    const eligibleMembers = members.filter(m => m.days.every(d => d === true));
+    
+    if (eligibleMembers.length === 0) {
+      alert("⚠️ 5ቱንም ቀናት ክፍያ (ቲክ) ያላጠናቀቀ አባል ስላለ ዕጣ ማውጣት አይቻልም! (ሁሉም 5 ቀናት መሞላት አለባቸው)");
+      return;
+    }
+
+    const randomWinnerIndex = Math.floor(Math.random() * eligibleMembers.length);
+    const winnerObj = eligibleMembers[randomWinnerIndex];
+    const originalIndex = members.findIndex(m => m.name === winnerObj.name);
+
     const arcSize = 360 / members.length;
-    const targetAngle = 360 * 5 + (360 - (randomWinnerIndex * arcSize + arcSize / 2));
+    const targetAngle = 360 * 5 + (360 - (originalIndex * arcSize + arcSize / 2));
     
     const spinData = {
       targetAngle: targetAngle,
-      winner: members[randomWinnerIndex].name,
+      winner: winnerObj.name,
       time: Date.now()
     };
     localStorage.setItem('ky_spin_data', JSON.stringify(spinData));
-    startLiveSpin(targetAngle, members[randomWinnerIndex].name);
+    startLiveSpin(targetAngle, winnerObj.name);
   }
 
   function startLiveSpin(targetDegrees, winnerName) {
@@ -321,7 +395,6 @@
         requestAnimationFrame(step);
       } else {
         document.getElementById('status-display').innerHTML = `🎉 አሸናፊ፦ <b>${winnerName}</b> 🏆`;
-        // ዕጣው ሲያልቅ ለአድሚኑ ፓነል ውስጥ የሼር በተን ይመጣል
         if (isAdmin) {
           document.getElementById('share-btn').style.display = 'block';
         }
@@ -330,8 +403,8 @@
     requestAnimationFrame(step);
   }
 
-  drawWheel();
   renderTable();
+  drawWheel();
 </script>
 
 </body>
