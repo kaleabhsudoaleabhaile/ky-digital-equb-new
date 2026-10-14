@@ -4,6 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>K Y Digital Equb - Live ዕጣ ማውጫ</title>
+  
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
   <style>
     :root {
       --bg-color: #0d1b2a;
@@ -233,13 +238,24 @@
 </div>
 
 <script>
+  // 🔥 Firebase Configuration
+  const firebaseConfig = {
+    databaseURL: "https://ky-digital-equb-default-rtdb.firebaseio.com/"
+  };
+  
+  if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+  }
+  const db = firebase.database();
+
   let isAdmin = false;
   let clickCount = 0;
   let clickTimer = null;
   let currentShareText = "";
   let lastSpinTime = 0;
+  let members = [];
 
-  // ርዕሱን 3 ጊዜ ስትነካ አድሚን ይከፍታል
+  // ርዕሱን 3 ጊዜ ሲነኩ አድሚን ይከፍታል
   function handleTitleClick() {
     clickCount++;
     if (clickCount === 1) {
@@ -261,41 +277,23 @@
     }
   }
 
-  // 🌐 ኦንላይን ዳታቤዝ (Cloud Sync Storage)
-  let members = JSON.parse(localStorage.getItem('ky_members')) || [];
-
-  function saveMembersLocally() {
-    localStorage.setItem('ky_members', JSON.stringify(members));
+  // 🌐 🔥 Real-time Cloud Listeners (በሁሉም ስልክ ላይ መረጃዎችን በኦንላይን የሚያስተላልፍ)
+  db.ref('ky_equb/members').on('value', (snapshot) => {
+    const data = snapshot.val();
+    members = data ? data : [];
     renderTable();
-  }
+  });
 
-  // በየ 2 ሰከንዱ ኦንላይን ላይ አዳዲስ መረጃዎችን መፈተሽ እና ማመሳሰል (Live Polling)
-  setInterval(() => {
-    fetchCloudData();
-  }, 2000);
-
-  function fetchCloudData() {
-    const cloudData = localStorage.getItem('ky_cloud_state');
-    if (cloudData) {
-      const parsed = JSON.parse(cloudData);
-      if (parsed.members) {
-        members = parsed.members;
-        renderTable();
-      }
-      if (parsed.spinEvent && parsed.spinEvent.time > lastSpinTime) {
-        lastSpinTime = parsed.spinEvent.time;
-        startLiveSpin(parsed.spinEvent.winner, parsed.spinEvent.gender, parsed.spinEvent.winnerIdx, false);
-      }
+  db.ref('ky_equb/spinEvent').on('value', (snapshot) => {
+    const spinData = snapshot.val();
+    if (spinData && spinData.time > lastSpinTime) {
+      lastSpinTime = spinData.time;
+      startLiveSpin(spinData.winner, spinData.gender, spinData.winnerIdx);
     }
-  }
+  });
 
-  function syncToCloud(spinData = null) {
-    saveMembersLocally();
-    const payload = {
-      members: members,
-      spinEvent: spinData
-    };
-    localStorage.setItem('ky_cloud_state', JSON.stringify(payload));
+  function saveMembersToCloud() {
+    db.ref('ky_equb/members').set(members);
   }
 
   function addNewMember() {
@@ -311,7 +309,7 @@
     }
     members.push({ name: name, gender: gender, days: [false, false, false, false, false], hasWon: false });
     nameInput.value = '';
-    syncToCloud();
+    saveMembersToCloud();
   }
 
   function editMember(idx) {
@@ -319,7 +317,7 @@
     const newName = prompt("አዲሱን የአባል ስም ያስገቡ:", members[idx].name);
     if (newName && newName.trim() !== "") {
       members[idx].name = newName.trim();
-      syncToCloud();
+      saveMembersToCloud();
     }
   }
 
@@ -327,7 +325,7 @@
     if (!isAdmin) return;
     if (confirm(`በእርግጥ ${members[idx].name} ከዕቁብ ዝርዝር ይወገድ?`)) {
       members.splice(idx, 1);
-      syncToCloud();
+      saveMembersToCloud();
     }
   }
 
@@ -335,13 +333,14 @@
     const tbody = document.getElementById('members-body');
     tbody.innerHTML = '';
     
-    if (members.length === 0) {
+    if (!members || members.length === 0) {
       tbody.innerHTML = `<tr><td colspan="9" style="color: #778da9; padding: 15px;">ምንም አባላት የሉም (በአድሚን ይጨመራሉ)</td></tr>`;
       return;
     }
 
     members.forEach((m, idx) => {
-      let allDaysPaid = m.days.every(d => d === true);
+      let mDays = m.days || [false, false, false, false, false];
+      let allDaysPaid = mDays.every(d => d === true);
       let statusText = m.hasWon ? 'ዕጣ የወጣለት' : (allDaysPaid ? 'ተከፍሏል' : 'አልተከፈለም');
       let statusColor = m.hasWon ? '#f5a623' : (allDaysPaid ? '#2ec4b6' : '#e63946');
 
@@ -349,9 +348,8 @@
       tr.innerHTML = `
         <td><b>${m.name}</b></td>
         <td><small>${m.gender || 'ወንድ'}</small></td>
-        ${m.days.map((d, dayIdx) => `<td><input type="checkbox" ${d ? 'checked' : ''} onchange="toggleDay(${idx},${dayIdx})"></td>`).join('')}
-        <td><span style="color: ${statusColor}; font-weight: bold;">${statusText}</span></td>
-        ${isAdmin ? `<td>
+        ${mDays.map((d, dayIdx) => `<td><input type="checkbox" ${d ? 'checked' : ''} onchange="toggleDay(${idx}, ${dayIdx})"></td>`).join('')}
+        <td><span style="color: ${statusColor}; font-weight: bold;">${statusText}</span></td>${isAdmin ? `<td>
           <button class="btn-action btn-edit" onclick="editMember(${idx})">✏️</button>
           <button class="btn-action btn-delete" onclick="deleteMember(${idx})">🗑️</button>
         </td>` : ''}
@@ -362,13 +360,16 @@
 
   function toggleDay(memberIdx, dayIdx) {
     if (!isAdmin) return;
+    if (!members[memberIdx].days) {
+      members[memberIdx].days = [false, false, false, false, false];
+    }
     members[memberIdx].days[dayIdx] = !members[memberIdx].days[dayIdx];
-    syncToCloud();
+    saveMembersToCloud();
   }
 
   function triggerSpin() {
     if (!isAdmin) return;
-    if (members.length === 0) {
+    if (!members || members.length === 0) {
       alert("እባክዎን መጀመሪያ አባሎችን ያስገቡ!");
       return;
     }
@@ -380,7 +381,7 @@
       return;
     }
 
-    const allActivePaid = activeMembers.every(m => m.days.every(d => d === true));
+    const allActivePaid = activeMembers.every(m => (m.days || []).every(d => d === true));
     
     if (!allActivePaid) {
       alert("⚠️ ዕጣ ማውጣት አይቻልም! ሁሉም አባላት የ 5ቱንም ቀናት ክፍያ (ቲክ) ሙሉ በሙሉ ማጠናቀቅ አለባቸው።");
@@ -391,19 +392,18 @@
     const winnerObj = activeMembers[randomWinnerIndex];
     const originalIndex = members.findIndex(m => m.name === winnerObj.name);
 
-    const spinEvent = {
+    const spinData = {
       winner: winnerObj.name,
       gender: winnerObj.gender || 'ወንድ',
       winnerIdx: originalIndex,
       time: Date.now()
     };
 
-    lastSpinTime = spinEvent.time;
-    syncToCloud(spinEvent);
-    startLiveSpin(winnerObj.name, winnerObj.gender || 'ወንድ', originalIndex, true);
+    // 🔥 በኦንላይን ዳታቤዝ ወደ ሁሉም ስልኮች የ Spin ምልክቱን መላክ
+    db.ref('ky_equb/spinEvent').set(spinData);
   }
 
-  function startLiveSpin(winnerName, winnerGender, winnerIdx, isTriggeredByMe) {
+  function startLiveSpin(winnerName, winnerGender, winnerIdx) {
     document.getElementById('status-display').innerHTML = "🎲 ዕጣ በመውጣት ላይ ነው...";
     const shuffleBox = document.getElementById('shuffle-display');
 
@@ -420,7 +420,7 @@
         shuffleBox.innerHTML = `🎉 ${winnerName} 🎉`;
         document.getElementById('status-display').innerHTML = `🎉 አሸናፊ፦ <b>${winnerName}</b> 🏆`;
 
-        if (isTriggeredByMe && isAdmin) {
+        if (isAdmin) {
           if (members[winnerIdx]) {
             members[winnerIdx].hasWon = true;
           }
@@ -429,33 +429,8 @@
             m.days = [false, false, false, false, false];
           });
           
-          syncToCloud();
+          saveMembersToCloud();
 
           const congratMsg = (winnerGender === 'ሴት') ? "እንኳን ደስ አለሽ!" : "እንኳን ደስ አለህ!";
           
-          currentShareText = `🎉 *K Y Digital Equb - Live Draw Result* 🎉\n\nየዚህ ዙር ዕጣ አሸናፊ:\n👤 የዚህ ዙር ዕጣ የወጣለት: *${winnerName}*\n💵 የዕቁብ ክፍያ መጠን: 50 ብር\n🏆 አጠቃላይ ድምር: 25,000 ብር\n\n💳 ለዕቁብ አባላት ብቻ የብድር አገልግሎት እናመቻቻለን::\n\n${congratMsg} 🎊 K Y Digital Equb`;
-          
-          document.getElementById('share-btn').style.display = 'block';
-        }
-      }
-    }, 100);
-  }
-
-  function shareToTelegram(e) {
-    e.preventDefault();
-    if (!currentShareText) return;
-    
-    const tgDirectUrl = `tg://msg_url?url=&text=${encodeURIComponent(currentShareText)}`;
-    const tgWebUrl = `https://t.me/share/url?url=&text=${encodeURIComponent(currentShareText)}`;
-
-    window.location.href = tgDirectUrl;
-    setTimeout(() => {
-      window.open(tgWebUrl, '_blank');
-    }, 1000);
-  }
-
-  renderTable();
-</script>
-
-</body>
-</html>
+          currentShareText = `🎉 *K Y Digital Equb - Live Draw Result* 🎉\n\nየዚህ ዙር ዕጣ አሸናፊ:\n👤 የዚህ ዙር ዕጣ የወጣለት: *${winnerName}*\n💵 የዕቁብ ክፍያ መጠን: 50 ብር\n🏆 አጠቃላይ ድምር: 25,000 ብር\n\n💳 ለዕቁብ አባላት ብቻ የብድር አገልግሎት እናመቻቻለን::\n\n${congratMsg} 
