@@ -254,9 +254,9 @@
   let clickTimer = null;
   let currentShareText = "";
   let lastSpinTime = 0;
+  let initialPageLoad = true;
   let members = [];
 
-  // ርዕሱን 3 ጊዜ ስትነካ አድሚን መግቢያ ይከፍታል
   function handleTitleClick() {
     clickCount++;
     if (clickCount === 1) {
@@ -278,7 +278,7 @@
     }
   }
 
-  // 🌐 🔥 Real-time Cloud Listeners (በሁሉም ስልክ ላይ መረጃዎችን በኦንላይን የሚያስተላልፍ)
+  // 🌐 🔥 Real-time Cloud Listeners
   db.ref('ky_equb/members').on('value', (snapshot) => {
     const data = snapshot.val();
     members = data ? data : [];
@@ -287,9 +287,18 @@
 
   db.ref('ky_equb/spinEvent').on('value', (snapshot) => {
     const spinData = snapshot.val();
-    if (spinData && spinData.time > lastSpinTime) {
-      lastSpinTime = spinData.time;
-      startLiveSpin(spinData.winner, spinData.gender, spinData.winnerIdx);
+    if (spinData) {
+      if (initialPageLoad) {
+        lastSpinTime = spinData.time;
+        initialPageLoad = false;
+        if (spinData.winner) {
+          document.getElementById('status-display').innerHTML = `🏆 ያለፈው ዙር አሸናፊ፦ <b>${spinData.winner}</b>`;
+          document.getElementById('shuffle-display').innerHTML = `🎉 ${spinData.winner} 🎉`;
+        }
+      } else if (spinData.time > lastSpinTime) {
+        lastSpinTime = spinData.time;
+        startLiveSpin(spinData.winner, spinData.gender, spinData.winnerIdx);
+      }
     }
   });
 
@@ -342,15 +351,37 @@
     members.forEach((m, idx) => {
       let mDays = m.days || [false, false, false, false, false];
       let allDaysPaid = mDays.every(d => d === true);
-      let statusText = m.hasWon ? 'ዕጣ የወጣለት' : (allDaysPaid ? 'ተከፍሏል' : 'አልተከፈለም');
-      let statusColor = m.hasWon ? '#f5a623' : (allDaysPaid ? '#2ec4b6' : '#e63946');
+      
+      // ✨ አዲሱ የከፈለ/ያልከፈለ ሁኔታ ማሳያ ሎጂክ፦
+      let statusText = "";
+      let statusColor = "";
+
+      if (m.hasWon) {
+        // ዕጣ የወጣለት አባል ከሆነ፦
+        if (allDaysPaid) {
+          statusText = "ተከፍሏል (ዕጣ የወጣለት)";
+          statusColor = "#2ec4b6";
+        } else {
+          statusText = "አልተከፈለም (ዕጣ የወጣለት)";
+          statusColor = "#f5a623";
+        }
+      } else {
+        // ገና ዕጣ ያላወጣ አባል ከሆነ፦
+        if (allDaysPaid) {
+          statusText = "ተከፍሏል";
+          statusColor = "#2ec4b6";
+        } else {
+          statusText = "አልተከፈለም";
+          statusColor = "#e63946";
+        }
+      }
 
       let tr = document.createElement('tr');
       tr.innerHTML = `
         <td><b>${m.name}</b></td>
         <td><small>${m.gender || 'ወንድ'}</small></td>
         ${mDays.map((d, dayIdx) => `<td><input type="checkbox" ${d ? 'checked' : ''} onchange="toggleDay(${idx},${dayIdx})"></td>`).join('')}
-        <td><span style="color: ${statusColor}; font-weight: bold;">${statusText}</span></td>
+        <td><span style="color: ${statusColor}; font-weight: bold; font-size: 11px;">${statusText}</span></td>
         ${isAdmin ? `<td>
           <button class="btn-action btn-edit" onclick="editMember(${idx})">✏️</button>
           <button class="btn-action btn-delete" onclick="deleteMember(${idx})">🗑️</button>
@@ -401,7 +432,6 @@
       time: Date.now()
     };
 
-    // 🔥 በኦንላይን ዳታቤዝ ወደ ሁሉም ስልኮች የ Spin ምልክቱን መላክ
     db.ref('ky_equb/spinEvent').set(spinData);
   }
 
